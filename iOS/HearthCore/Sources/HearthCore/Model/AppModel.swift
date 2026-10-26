@@ -51,22 +51,28 @@ public final class AppModel {
     public private(set) var health: HealthResponse?
     public private(set) var relayProblem: String?
     public private(set) var rules: HouseRules
+    /// The mail sorting rules (Hearth's defaults until the owner changes one).
+    public private(set) var mailRules: [MailRule]
     public private(set) var credentialsVersion = 0
 
     public let plans: PlansModel
     public let sources: SourcesModel
     public let capture: CaptureModel
+    public let inbox: InboxModel
 
     public init(services: AppServices) {
         self.services = services
         health = services.database.load(HealthResponse.self, key: StoreKey.health)
         rules = services.database.load(HouseRules.self, key: StoreKey.rules) ?? HouseRules()
+        mailRules = services.database.load([MailRule].self, key: StoreKey.mailRules) ?? MailRules.defaults
         plans = PlansModel(services: services)
         sources = SourcesModel(services: services)
         capture = CaptureModel(services: services, inbox: services.inbox)
+        inbox = InboxModel(services: services)
         plans.app = self
         sources.app = self
         capture.app = self
+        inbox.app = self
     }
 
     public var now: Date { services.clock.now }
@@ -118,16 +124,32 @@ public final class AppModel {
         Task { await uploadContext() }
     }
 
-    /// Tells the relay the owner's switches and the Apple calendars it can't see.
+    /// Turns one mail rule on or off; the relay sorts with it from the next sweep.
+    public func setMailRule(_ id: String, enabled: Bool) {
+        guard let index = mailRules.firstIndex(where: { $0.id == id }) else { return }
+        mailRules[index].enabled = enabled
+        try? services.database.save(mailRules, key: StoreKey.mailRules, now: now)
+        Task { await uploadContext() }
+    }
+
+    /// How much of what's in the inboxes now a rule catches (the preview beside its switch).
+    public func mailRuleMatches(_ rule: MailRule) -> Int {
+        guard let items = inbox.snapshot?.items else { return 0 }
+        return items.filter { rule.match.matches($0.item, labelNames: [:], now: now) }.count
+    }
+
+    /// Tells the relay the owner's switches, mail rules and the Apple calendars it can't see.
     public func uploadContext() async {
         guard let relay else { return }
         let apple = plans.appleEvents.filter { $0.start < now.addingTimeInterval(14 * 86400) }
-        try? await relay.uploadContext(PhoneContext(rules: rules, appleEvents: apple, uploadedAt: now))
+        let custom = services.database.load([MailRule].self, key: StoreKey.mailRules)
+        try? await relay.uploadContext(PhoneContext(rules: rules, appleEvents: apple, mailRules: custom, uploadedAt: now))
     }
 
     /// Everything the app shows, fresh: health first (it carries the household), then plans.
     public func refreshAll(force: Bool = false) async {
         await refreshHealth()
         await plans.refresh(force: force)
+        await inbox.refresh(force: force)
     }
 }

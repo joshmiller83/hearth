@@ -22,6 +22,7 @@ struct SourcesView: View {
             CalendarsCard()
             HowTodayCard()
             RulesCard()
+            MailRulesCard()
         }
         .navigationTitle("Sources")
         .navigationBarTitleDisplayMode(.inline)
@@ -371,5 +372,42 @@ extension View {
             .padding(.horizontal, 14)
             .frame(minHeight: Theme.touch)
             .background(Theme.chip, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+/// The mail rules, each with a switch and how much of the inbox it catches now.
+private struct MailRulesCard: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        ListCard(title: "Mail rules") {
+            ForEach(app.mailRules) { rule in
+                Toggle(
+                    isOn: Binding(get: { rule.enabled }, set: { on in MainActor.assumeIsolated { app.setMailRule(rule.id, enabled: on) } })
+                ) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(rule.name).font(.hRowTitle).foregroundStyle(Theme.ink)
+                        Text(detail(rule)).font(.hMeta).foregroundStyle(Theme.muted)
+                    }
+                }
+                .tint(Theme.ember)
+                .padding(.vertical, 10)
+                .overlay(alignment: .top) { Hairline() }
+            }
+            Text("Rules run first, with no AI. Claude sorts only what no rule places, and nothing moves until you approve a queue.")
+                .font(.hMeta).foregroundStyle(Theme.muted)
+                .padding(.vertical, 10)
+                .overlay(alignment: .top) { Hairline() }
+        }
+    }
+
+    func detail(_ rule: MailRule) -> String {
+        let destination: String
+        switch rule.outcome {
+        case .queue(let queue, _, let bundle): destination = bundle.map { "\(queue.label), bundled as \($0)" } ?? queue.label
+        case .keep: destination = "Stays in the inbox"
+        }
+        let count = app.mailRuleMatches(rule)
+        return count > 0 ? "\(destination) · \(count) in your inboxes now" : destination
     }
 }

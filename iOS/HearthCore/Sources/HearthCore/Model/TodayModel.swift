@@ -21,6 +21,15 @@ public struct TodaySummary: Sendable, Equatable {
     public var needsYou: [NeedsYou]
     /// The next few days' plans, after today.
     public var comingUp: [AgendaEvent]
+    /// Queue counts for "Inbox, triaged", in queue order; nil before the first sweep.
+    public var triage: [(queue: MailQueue, count: Int)]?
+    public var newMail: Int
+
+    public static func == (a: TodaySummary, b: TodaySummary) -> Bool {
+        a.dateLine == b.dateLine && a.greeting == b.greeting && a.sweepLine == b.sweepLine && a.nextUp == b.nextUp
+            && a.needsYou == b.needsYou && a.comingUp == b.comingUp && a.newMail == b.newMail
+            && a.triage?.map(\.count) == b.triage?.map(\.count)
+    }
 
     @MainActor
     public static func make(app: AppModel) -> TodaySummary {
@@ -41,13 +50,26 @@ public struct TodaySummary: Sendable, Equatable {
             needs.append(NeedsYou(id: invite.id, kind: .invite, title: "RSVP: \(invite.title)", detail: detail))
         }
 
+        let mail = app.inbox.snapshot
+        for reply in (mail?.items(in: .reply) ?? []).prefix(3) {
+            let item = reply.item
+            needs.append(
+                NeedsYou(
+                    id: reply.id, kind: .reply, title: "\(item.senderName): \(item.subject)",
+                    detail: "\(reply.tag) · \(item.account) · \(app.inbox.time(item.date))"))
+        }
+
         var sweep = "Add the relay in Sources to bring in mail and Google calendars."
         if let fetched = plans.fetchedAt {
             let count = needs.count
             let things = count == 0 ? "Nothing needs you right now." : count == 1 ? "One thing needs you." : "\(count) things need you."
             let accounts = app.health?.accounts?.count
-            let what = accounts.map { "Checked \($0) accounts and every calendar" } ?? "Checked every calendar"
-            sweep = "\(what) at \(fmt.time(fetched)). \(things)"
+            let what =
+                mail != nil
+                ? "Swept \(accounts ?? mail!.accounts.count) inboxes and every calendar"
+                : accounts.map { "Checked \($0) accounts and every calendar" }
+                    ?? "Checked every calendar"
+            sweep = "\(what) at \(fmt.time(max(fetched, mail?.generatedAt ?? fetched))). \(things)"
         }
 
         let next = agenda.nextUp(now: now)
@@ -77,7 +99,9 @@ public struct TodaySummary: Sendable, Equatable {
             nextUpLabel: label,
             nextUpMeta: meta,
             needsYou: needs,
-            comingUp: Array(coming)
+            comingUp: Array(coming),
+            triage: mail.map { snapshot in MailQueue.allCases.map { ($0, snapshot.items(in: $0).count) } },
+            newMail: mail?.newCount ?? 0
         )
     }
 }

@@ -25,6 +25,9 @@ struct TodayView: View {
             if !today.needsYou.isEmpty {
                 needsYouCard(today.needsYou)
             }
+            if let triage = today.triage {
+                triageCard(triage, newMail: today.newMail)
+            }
             if !today.comingUp.isEmpty {
                 comingUpCard(today.comingUp)
             }
@@ -142,6 +145,53 @@ struct TodayView: View {
             }
         }
         .accessibilityIdentifier("needs-you")
+    }
+
+    /// The design's stacked bar: Reply ember, Job hunt ice, Archive stone, Delete dark stone.
+    func triageCard(_ triage: [(queue: MailQueue, count: Int)], newMail: Int) -> some View {
+        Card(padding: EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Inbox, triaged").eyebrow()
+                    Spacer()
+                    Text("\(newMail) new since the last sweep").font(.hMeta).foregroundStyle(Theme.muted)
+                }
+                GeometryReader { geo in
+                    let total = max(1, triage.reduce(0) { $0 + $1.count })
+                    HStack(spacing: 3) {
+                        ForEach(triage, id: \.queue) { entry in
+                            RoundedRectangle(cornerRadius: 5).fill(color(entry.queue))
+                                .frame(width: max(entry.count > 0 ? 6 : 0, (geo.size.width - 9) * CGFloat(entry.count) / CGFloat(total)))
+                        }
+                    }
+                }
+                .frame(height: 10)
+                .accessibilityHidden(true)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible())], spacing: 8) {
+                    ForEach(triage, id: \.queue) { entry in
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 3).fill(color(entry.queue)).frame(width: 10, height: 10)
+                            Text(entry.queue.label).font(.custom(Typeface.regular, size: 14, relativeTo: .subheadline)).foregroundStyle(
+                                Theme.ink)
+                            Spacer()
+                            Text("\(entry.count)").font(.custom(Typeface.bold, size: 14, relativeTo: .subheadline)).foregroundStyle(
+                                Theme.ink)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                Button("Review the queues") { tab = .inbox }.buttonStyle(.pill(.secondary))
+            }
+        }
+    }
+
+    func color(_ queue: MailQueue) -> Color {
+        switch queue {
+        case .reply: Theme.ember
+        case .jobHunt: Theme.ice
+        case .archive: Theme.stone
+        case .delete: Theme.stoneDeep
+        }
     }
 
     func comingUpCard(_ events: [AgendaEvent]) -> some View {

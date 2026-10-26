@@ -125,6 +125,57 @@ public final class DeviceModel: Model, @unchecked Sendable {
     }
 }
 
+/// How Claude sorted a message the rules couldn't place, so it isn't asked twice.
+/// Rule results aren't stored: rules re-run every sweep, so edits apply at once.
+public final class MailTriageModel: Model, @unchecked Sendable {
+    public static let schema = "mail_triage"
+
+    /// "<account>:<message id>".
+    @ID(custom: "id", generatedBy: .user) public var id: String?
+    @Field(key: "account") public var account: String
+    @OptionalField(key: "queue") public var queue: String?
+    @Field(key: "tag") public var tag: String
+    @Field(key: "reason") public var reason: String
+    /// "claude" or "unsorted".
+    @Field(key: "sorter") public var sorter: String
+    @Field(key: "classified_at") public var classifiedAt: Date
+    /// Set when Hearth replied to it: it leaves the Reply queue.
+    @OptionalField(key: "handled_at") public var handledAt: Date?
+
+    public init() {}
+
+    public init(triaged: TriagedMail, now: Date) {
+        id = triaged.id
+        account = triaged.item.account
+        queue = triaged.queue?.rawValue
+        tag = triaged.tag
+        reason = triaged.reason
+        sorter = triaged.sortedBy == .claude ? "claude" : "unsorted"
+        classifiedAt = now
+    }
+}
+
+public struct CreateMailTriage: AsyncMigration {
+    public init() {}
+
+    public func prepare(on database: any Database) async throws {
+        try await database.schema(MailTriageModel.schema)
+            .field("id", .string, .identifier(auto: false))
+            .field("account", .string, .required)
+            .field("queue", .string)
+            .field("tag", .string, .required)
+            .field("reason", .string, .required)
+            .field("sorter", .string, .required)
+            .field("classified_at", .datetime, .required)
+            .field("handled_at", .datetime)
+            .create()
+    }
+
+    public func revert(on database: any Database) async throws {
+        try await database.schema(MailTriageModel.schema).delete()
+    }
+}
+
 public struct CreateSchema: AsyncMigration {
     public init() {}
 

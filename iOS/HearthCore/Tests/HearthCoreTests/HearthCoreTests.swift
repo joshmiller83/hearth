@@ -196,9 +196,15 @@ struct TodayTests {
         #expect(today.nextUp?.title == "Coffee chat, agency lead")
         #expect(today.nextUpLabel == "Next up · in 52 min")
         #expect(today.nextUpMeta == "Zoom · landed on work@")
-        #expect(today.needsYou.map(\.title) == ["RSVP: Alumni mixer", "RSVP: Leaders huddle"])
-        #expect(today.needsYou.last?.detail == "Thu 7 PM · overlaps Bible study")
-        #expect(today.sweepLine == "Checked 6 accounts and every calendar at 10:02 AM. 2 things need you.")
+        #expect(
+            today.needsYou.map(\.title) == [
+                "RSVP: Alumni mixer", "RSVP: Leaders huddle", "Dana Whitfield: Next steps: Senior Engineer",
+                "Church Office: Trunk or Treat shifts", "Coach Martinez: Practice moved to Thursday",
+            ])
+        #expect(today.needsYou[1].detail == "Thu 7 PM · overlaps Bible study")
+        #expect(today.needsYou[2].detail == "Needs you · work · 8:12 AM")
+        #expect(today.sweepLine == "Swept 6 inboxes and every calendar at 10:02 AM. 5 things need you.")
+        #expect(today.triage?.map(\.count) == [5, 3, 5, 1])
         #expect(today.comingUp.map(\.title) == ["Jordan's birthday", "Bible study", "Trunk or Treat", "Neighborhood brunch"])
     }
 }

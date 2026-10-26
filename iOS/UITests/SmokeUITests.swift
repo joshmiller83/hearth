@@ -59,6 +59,35 @@ final class SmokeUITests: XCTestCase {
     }
 
     @MainActor
+    func testArchivingAQueueCanBeUndone() {
+        let app = launch()
+        app.tabBars.buttons["Inbox"].tap()
+        app.buttons["Archive, 5"].tap()
+        let archive = app.buttons["Archive 5"]
+        XCTAssertTrue(archive.waitForExistence(timeout: 5))
+        archive.tap()
+        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout: 3))
+        app.buttons["Undo"].tap()
+        XCTAssertTrue(app.buttons["Archive 5"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testAReplyIsDraftedAndSent() {
+        let app = launch()
+        app.tabBars.buttons["Inbox"].tap()
+        let row = app.staticTexts["Next steps: Senior Engineer"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        // Eyebrow labels are upper case on screen and to VoiceOver.
+        let draft = app.staticTexts.matching(NSPredicate(format: "label ==[c] %@", "Claude's draft")).firstMatch
+        XCTAssertTrue(draft.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["What Claude looked at"].waitForExistence(timeout: 5))
+        app.buttons["Send now"].tap()
+        let sent = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Sent'")).firstMatch
+        XCTAssertTrue(sent.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testSourcesShowsTheRelayAndRules() {
         let app = launch()
         app.buttons["Sources and rules"].tap()

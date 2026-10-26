@@ -15,7 +15,7 @@ public enum RelayInfo {
 ///
 /// Like the tree farm server, the relay runs one event loop and so one SQLite
 /// connection: every write happens alone.
-public func configure(_ app: Application, config: RelayConfig, google: GoogleAccess? = nil) async throws {
+public func configure(_ app: Application, config: RelayConfig, google: GoogleAccess? = nil, claude: ClaudeClient? = nil) async throws {
     app.http.server.configuration.hostname = config.host
     app.http.server.configuration.port = config.port
     app.routes.defaultMaxBodySize = "4mb"
@@ -28,13 +28,16 @@ public func configure(_ app: Application, config: RelayConfig, google: GoogleAcc
         app.databases.use(.sqlite(.file(path)), as: .sqlite)
     }
     app.migrations.add(CreateSchema())
+    app.migrations.add(CreateMailTriage())
     try await app.autoMigrate()
 
     let household = try config.loadHousehold()
     let access = google ?? .live(config: config, logger: app.logger)
-    let claude = config.loadAnthropicKey().map {
-        ClaudeClient(apiKey: $0, transport: VaporHTTPTransport(client: app.client))
-    }
+    let claude =
+        claude
+        ?? config.loadAnthropicKey().map {
+            ClaudeClient(apiKey: $0, transport: VaporHTTPTransport(client: app.client))
+        }
     let db = app.db
     let executor = ActionExecutor(
         db: db,
@@ -51,7 +54,7 @@ public func configure(_ app: Application, config: RelayConfig, google: GoogleAcc
         household: household,
         google: access,
         executor: executor,
-        jobs: JobRunner(jobs: [CalendarCacheJob()]),
+        jobs: JobRunner(jobs: [CalendarCacheJob(), MailSweepJob()]),
         refresher: CalendarRefresher(),
         claude: claude
     )
@@ -94,4 +97,5 @@ func routes(_ app: Application) throws {
     try keyed.register(collection: CalendarController())
     try keyed.register(collection: ActionsController())
     try keyed.register(collection: ContextController())
+    try keyed.register(collection: MailController())
 }

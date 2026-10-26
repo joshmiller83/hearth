@@ -104,3 +104,69 @@ public enum Fixtures {
         ]
     }
 }
+
+// MARK: - Mail
+
+extension Fixtures {
+    static func mail(
+        _ id: String, _ account: String, _ from: String, _ subject: String, _ snippet: String, _ local: String,
+        labels: [String] = ["INBOX", "UNREAD"], github: String? = nil, listId: String? = nil
+    ) -> MailItem {
+        MailItem(
+            id: id, threadId: "t-" + id, account: account, from: from, to: "", subject: subject, snippet: snippet,
+            date: at(local), labels: labels, unread: labels.contains("UNREAD"), githubReason: github, listId: listId)
+    }
+
+    /// A Monday morning's inboxes, every sender fictional.
+    public static var inbox: [MailItem] {
+        [
+            mail(
+                "m1", "work", "Dana Whitfield <dana@northbeam.example>", "Next steps: Senior Engineer",
+                "Thanks again for Friday. Could you share a few windows for a 90-minute panel with engineering and product?",
+                "2026-10-26T08:12"),
+            mail(
+                "m2", "home", "Church Office <office@church.example>", "Trunk or Treat shifts",
+                "Could you and Robin take the 4–5 slot at the candy table on Saturday?", "2026-10-26T07:48"),
+            mail(
+                "m3", "home", "Mom <mom@example.com>", "Thanksgiving plans??",
+                "Are you all coming Wednesday night or Thursday morning? Dad wants to know.", "2026-10-25T16:20"),
+            mail(
+                "m4", "school", "Alumni Association <calendar-notification@google.com>",
+                "Invitation: Virtual mixer @ Wed Oct 28, 2026 8pm - 9pm (EDT)", "Reply to RSVP.", "2026-10-24T11:00"),
+            mail(
+                "m5", "work", "Northbeam Talent <no-reply@us.greenhouse-mail.io>", "Application received: Senior Engineer",
+                "We've received your application and will be in touch.", "2026-10-26T06:02"),
+            mail(
+                "m6", "work", "Civic Labs Hiring <jobs@civiclabs.example>", "Thanks for applying",
+                "Your application for Platform Engineer is in review.", "2026-10-26T05:40"),
+            mail(
+                "m7", "work", "LinkedIn Job Alerts <jobalerts-noreply@linkedin.com>", "12 new engineering roles near you",
+                "Two match your saved search.", "2026-10-25T09:00"),
+            mail(
+                "m8", "home", "Sam Rivera <notifications@github.com>", "Re: [module] Batch modify (#212)", "Merged.",
+                "2026-10-26T07:15", github: "subscribed"),
+            mail(
+                "m9", "home", "Riley <notifications@github.com>", "Re: [module] Docs pass (#215)", "LGTM.",
+                "2026-10-26T07:05", github: "comment"),
+            mail(
+                "m10", "home", "Kevin <notifications@github.com>", "[module] Review requested on #218", "Kevin requested your review.",
+                "2026-10-26T06:50", github: "review_requested"),
+            mail(
+                "m11", "work", "Your Bank <alerts@bank.example>", "Your October statement is ready",
+                "Your statement for the account ending in 42 is available.", "2026-10-26T06:30"),
+            mail(
+                "m12", "town", "Maple Grove Daily <news@daily.example>", "Monday: Council meeting, Route 15 work",
+                "Today's top stories.", "2026-10-26T06:00", labels: ["INBOX", "UNREAD", "CATEGORY_UPDATES"], listId: "<daily.example>"),
+            mail(
+                "m13", "home", "Parcel Updates <ship@carrier.example>", "Delivered: 2 packages", "Left at front door at 3:14 PM.",
+                "2026-10-25T15:20"),
+            mail(
+                "m14", "robin", "Home Goods <deals@homegoods.example>", "Fall sale ends tonight", "Up to 40% off throws.",
+                "2026-06-20T05:00", labels: ["INBOX", "UNREAD", "CATEGORY_PROMOTIONS"]),
+            mail("m15", "home", "Google <no-reply@accounts.google.com>", "Security alert", "A new sign-in on Mac.", "2026-10-26T04:10"),
+            mail(
+                "m16", "kid", "Coach Martinez <coach@league.example>", "Practice moved to Thursday",
+                "Field 3 is closed, so we'll practice Thursday at 5:30.", "2026-10-25T18:45", labels: ["INBOX"]),
+        ]
+    }
+}

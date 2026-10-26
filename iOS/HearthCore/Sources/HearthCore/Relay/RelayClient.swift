@@ -9,6 +9,8 @@ public protocol RelayAPI: Sendable {
     func statuses(ids: [String]) async throws -> [ActionStatus]
     func cancel(id: String) async throws -> ActionStatus
     func uploadContext(_ context: PhoneContext) async throws
+    func mailSnapshot(refresh: Bool) async throws -> MailSnapshot
+    func thread(account: String, threadId: String) async throws -> ThreadResponse
 }
 
 public enum RelayError: Error, Equatable, Sendable, CustomStringConvertible {
@@ -104,5 +106,15 @@ public struct RelayClient: RelayAPI {
 
     public func uploadContext(_ context: PhoneContext) async throws {
         _ = try await raw("POST", url(RelayPath.context), body: try HearthJSON.encode(context))
+    }
+
+    public func mailSnapshot(refresh: Bool) async throws -> MailSnapshot {
+        try await call(
+            "GET", url(RelayPath.mailSnapshot, query: refresh ? ["refresh": "1"] : [:]), timeout: refresh ? 180 : 30,
+            as: MailSnapshot.self)
+    }
+
+    public func thread(account: String, threadId: String) async throws -> ThreadResponse {
+        try await call("GET", url(RelayPath.mailThreads + "/" + account + "/" + threadId), timeout: 60, as: ThreadResponse.self)
     }
 }

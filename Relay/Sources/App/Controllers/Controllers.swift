@@ -95,8 +95,44 @@ struct ContextController: RouteCollection {
         // The phone's switches and Apple calendars, for the jobs that need them.
         routes.post("v1", "context") { req async throws -> HTTPStatus in
             let context = try req.decodeJSON(PhoneContext.self)
-            try await Cache(db: req.db).set(context, Cache.context, now: req.now)
+            let cache = Cache(db: req.db)
+            try await cache.set(context, Cache.context, now: req.now)
+            if let rules = context.mailRules { try await cache.set(rules, Cache.mailRules, now: req.now) }
             return .noContent
+        }
+    }
+}
+
+struct MailController: RouteCollection {
+    func boot(routes: any RoutesBuilder) throws {
+        // Every inbox, triaged by the last sweep; `refresh=1` sweeps now.
+        routes.get("v1", "mail", "snapshot") { req async throws -> Response in
+            let refresh = ["1", "true", "yes"].contains(req.query[String.self, at: "refresh"] ?? "")
+            let cache = Cache(db: req.db)
+            if !refresh, let snapshot = try await cache.get(MailSnapshot.self, Cache.mailSnapshot) {
+                return try .json(snapshot)
+            }
+            do {
+                return try .json(try await MailSweepJob.sweep(req.application.jobContext()))
+            } catch {
+                if let stale = try await cache.get(MailSnapshot.self, Cache.mailSnapshot) {
+                    var out = stale
+                    out.problems.append(SourceProblem(source: "relay", message: "Showing the last sweep: \(error)"))
+                    return try .json(out)
+                }
+                throw Abort(.serviceUnavailable, reason: "Couldn't read the inboxes: \(error)")
+            }
+        }
+
+        // One thread, with the text of each message.
+        routes.get("v1", "mail", "threads", ":account", ":thread") { req async throws -> Response in
+            guard let account = req.parameters.get("account"), let thread = req.parameters.get("thread") else { throw Abort(.badRequest) }
+            do {
+                let rows = try await req.relay.google.reader.thread(id: thread, account: account)
+                return try .json(ThreadResponse(account: account, threadId: thread, messages: rows.compactMap(ThreadMessage.init(row:))))
+            } catch let error as BridgeError {
+                throw Abort(.badGateway, reason: error.description)
+            }
         }
     }
 }

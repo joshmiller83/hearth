@@ -6,6 +6,10 @@ import HearthKit
 public struct Cache: Sendable {
     public static let events = "calendar.events"
     public static let mailSnapshot = "mail.snapshot"
+    /// Account alias → (label id → name), refreshed daily.
+    public static let mailLabels = "mail.labels"
+    /// Mail rules the owner edited on the phone (defaults when absent).
+    public static let mailRules = "mail.rules"
     public static let brief = "brief"
     public static let context = "phone.context"
     public static let signals = "signals"

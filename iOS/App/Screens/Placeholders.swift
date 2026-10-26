@@ -28,17 +28,6 @@ struct ComingSoon: View {
     }
 }
 
-struct InboxPlaceholder: View {
-    var body: some View {
-        ComingSoon(
-            title: "Inbox", milestone: "M3", symbol: "tray",
-            lines: [
-                "Every inbox, swept every 15 minutes and sorted by your rules into Reply, Job hunt, Archive and Delete.",
-                "Approve a queue per account with one tap, undo for 10 seconds, and nothing is ever deleted for good.",
-            ])
-    }
-}
-
 struct PeoplePlaceholder: View {
     var body: some View {
         ComingSoon(

@@ -103,6 +103,29 @@ public actor FixtureRelay: RelayAPI {
     }
 
     public func uploadContext(_ context: PhoneContext) async throws {}
+
+    public func mailSnapshot(refresh: Bool) async throws -> MailSnapshot {
+        let triaged = Fixtures.inbox.map { item in
+            MailRules.classify(item, rules: MailRules.defaults, labelNames: [:], now: Fixtures.now)
+                ?? TriagedMail(item: item, queue: .reply, tag: "Needs you", reason: "Someone wrote to you", sortedBy: .claude)
+        }
+        return MailSnapshot(
+            generatedAt: Fixtures.now.addingTimeInterval(-6 * 60), accounts: Fixtures.accounts.map(\.alias),
+            items: triaged, newCount: triaged.count, jobHuntLabels: ["work": "Label_7"])
+    }
+
+    public func thread(account: String, threadId: String) async throws -> ThreadResponse {
+        let item = Fixtures.inbox.first { $0.threadId == threadId }
+        let body =
+            "Hi Sam,\n\nThanks again for Friday. The team enjoyed hearing about your work. Next step is a 90-minute panel with engineering and product. Could you send a few windows Wednesday through Friday this week?\n\nBest,\nDana"
+        return ThreadResponse(
+            account: account, threadId: threadId,
+            messages: [
+                ThreadMessage(
+                    id: item?.id ?? "m1", from: item?.from ?? "Dana Whitfield <dana@northbeam.example>",
+                    to: "sam@rivera.example", date: item?.date ?? Fixtures.now, subject: item?.subject ?? "Next steps", body: body)
+            ])
+    }
 }
 
 /// Apple calendars from the fixtures; writes are kept in memory so tests can check them.
@@ -188,6 +211,18 @@ public struct FixtureClaude: HTTPTransport {
         let content = body?["messages"]?[0]?["content"]?.arrayValue ?? []
         let text = content.compactMap { $0["text"]?.stringValue }.joined(separator: " ").lowercased()
         let hasImage = content.contains { $0["type"]?.stringValue == "image" }
+        if body?["output_config"]?["format"]?["schema"]?["properties"]?["offeredSlots"] != nil {
+            let shorter = text.contains("as short as it can be")
+            let draft = DraftPrompt.Draft(
+                body: shorter
+                    ? "Hi Dana,\n\nGlad to. Any of these work (Eastern):\n\n• Tue, Oct 27 · 9:00–10:30 AM\n• Wed, Oct 28 · 1:00–2:30 PM\n\nSam"
+                    : "Hi Dana,\n\nThanks, I enjoyed Friday too. Any of these 90-minute windows work on my end (Eastern):\n\n• Tue, Oct 27 · 9:00–10:30 AM\n• Wed, Oct 28 · 1:00–2:30 PM\n\nHappy to flex if the panel's calendars are tight.\n\nSam",
+                offeredSlots: [
+                    .init(start: "2026-10-27T09:00", end: "2026-10-27T10:30"), .init(start: "2026-10-28T13:00", end: "2026-10-28T14:30"),
+                ],
+                lookedAt: ["Free time across every calendar, Tue–Wed", "Dana's message"])
+            return Self.reply(String(decoding: try HearthJSON.encode(draft), as: UTF8.self))
+        }
         let reading: CaptureReading
         if hasImage {
             reading = CaptureReading(
@@ -213,9 +248,13 @@ public struct FixtureClaude: HTTPTransport {
                     CaptureEntry(id: "e1", title: "Plan", date: "2026-10-27", startTime: "18:00", source: text)
                 ])
         }
+        return Self.reply(String(decoding: try HearthJSON.encode(reading), as: UTF8.self))
+    }
+
+    static func reply(_ text: String) -> HTTPResponse {
         let message: JSONValue = [
             "id": "msg_fixture", "type": "message", "role": "assistant", "model": "claude-opus-5-5",
-            "content": [["type": "text", "text": .string(String(decoding: try HearthJSON.encode(reading), as: UTF8.self))]],
+            "content": [["type": "text", "text": .string(text)]],
             "stop_reason": "end_turn", "usage": ["input_tokens": 900, "output_tokens": 120],
         ]
         return HTTPResponse(status: 200, body: message.data)

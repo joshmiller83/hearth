@@ -134,6 +134,24 @@ public actor ActionExecutor {
 
     static let maxAttempts = 5
 
+    private func markHandled(account: String, messageId: String) async throws {
+        let key = account + ":" + messageId
+        if let model = try await MailTriageModel.find(key, on: db) {
+            model.handledAt = now()
+            try await model.update(on: db)
+        } else {
+            let model = MailTriageModel()
+            model.id = key
+            model.account = account
+            model.tag = "Replied"
+            model.reason = "Replied from Hearth"
+            model.sorter = "claude"
+            model.classifiedAt = now()
+            model.handledAt = now()
+            try await model.create(on: db)
+        }
+    }
+
     /// Pending with no time means it was interrupted (a restart mid-run); with a
     /// time, a scheduled send or a retry coming due. (Nonisolated: Fluent's query
     /// builder can't cross into the actor.)
@@ -155,10 +173,20 @@ public actor ActionExecutor {
         let cache = Cache(db: db)
         switch kind {
         case .modifyMail(let account, let ids, let change):
-            return try await writer.modify(account: account, messageIds: ids, change: change)
+            let result = try await writer.modify(account: account, messageIds: ids, change: change)
+            if change.archive || change.trash, let snapshot = try await cache.get(MailSnapshot.self, Cache.mailSnapshot) {
+                try await cache.set(snapshot.removing(account: account, ids: Set(ids)), Cache.mailSnapshot, now: now())
+            }
+            return result
 
         case .reply(let account, let messageId, let body, let replyAll):
-            return try await writer.reply(account: account, messageId: messageId, body: body, replyAll: replyAll)
+            let result = try await writer.reply(account: account, messageId: messageId, body: body, replyAll: replyAll)
+            // Answered: it leaves the Reply queue, even though it stays in the inbox.
+            try await markHandled(account: account, messageId: messageId)
+            if let snapshot = try await cache.get(MailSnapshot.self, Cache.mailSnapshot) {
+                try await cache.set(snapshot.removing(account: account, ids: [messageId]), Cache.mailSnapshot, now: now())
+            }
+            return result
 
         case .rsvp(let account, let calendarId, let eventId, let response):
             let row = try await writer.respond(account: account, calendarId: calendarId, eventId: eventId, response: response)

@@ -64,9 +64,28 @@ final class FakeGoogle: GoogleReader, GoogleWriter, @unchecked Sendable {
         withLock { eventSweeps += 1 }
         return eventRows
     }
-    func search(query: String, account: String, limit: Int, metadataOnly: Bool) async throws -> [GmailkitMessageRow] { [] }
-    func thread(id: String, account: String) async throws -> [GmailkitMessageRow] { [] }
-    func labels(account: String) async throws -> [GmailkitLabelRow] { [] }
+    var inbox: [MailItem] = Fixtures.inbox
+    private(set) var searches: [String] = []
+
+    func email(_ alias: String) -> String { Fixtures.accounts.first { $0.alias == alias }?.email ?? alias }
+
+    func search(query: String, account: String, limit: Int, metadataOnly: Bool) async throws -> [GmailkitMessageRow] {
+        if let failReads { throw failReads }
+        withLock { searches.append(query) }
+        guard query == "in:inbox" else { return [] }
+        return inbox.map { GmailkitMessageRow(item: $0, email: email($0.account)) }
+            + [GmailkitMessageRow(account: "kid.rivera@example.com", error: "[kid.rivera@example.com] invalid_grant")]
+    }
+
+    func thread(id: String, account: String) async throws -> [GmailkitMessageRow] {
+        inbox.filter { $0.threadId == id }.map {
+            GmailkitMessageRow(item: $0, email: email(account), body: "Could you share a few windows?")
+        }
+    }
+
+    func labels(account: String) async throws -> [GmailkitLabelRow] {
+        account == "work" ? [GmailkitLabelRow(id: "INBOX", name: "INBOX"), GmailkitLabelRow(id: "Label_7", name: "Job Hunt")] : []
+    }
 
     // MARK: GoogleWriter
 
@@ -121,6 +140,7 @@ struct TestContext {
 func withTestApp<T>(
     clock: ManualClock = ManualClock(Fixtures.now),
     google: FakeGoogle = FakeGoogle(),
+    claude: ClaudeClient? = nil,
     adjust: (inout RelayConfig) -> Void = { _ in },
     _ body: (TestContext) async throws -> T
 ) async throws -> T {
@@ -135,7 +155,7 @@ func withTestApp<T>(
     adjust(&config)
     let result: T
     do {
-        try await configure(app, config: config, google: GoogleAccess(reader: google, writer: google))
+        try await configure(app, config: config, google: GoogleAccess(reader: google, writer: google), claude: claude)
         result = try await body(TestContext(app: app, clock: clock, google: google))
     } catch {
         try? await app.asyncShutdown()

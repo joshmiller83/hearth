@@ -154,6 +154,7 @@ public enum StoreKey {
     public static let googleEvents = "relay.events"
     public static let health = "relay.health"
     public static let rules = "house.rules"
+    public static let mailRules = "mail.rules"
     public static let appleCalendars = "apple.calendars"
 }
 

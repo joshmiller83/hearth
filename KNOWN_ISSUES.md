@@ -2,6 +2,22 @@
 
 What each milestone left for later. Newest first.
 
+## M3 Mail triage
+
+- Sorting what no rule places needs the relay's own Claude key
+  (`ANTHROPIC_KEY_FILE` in deploy/config.env). Until then that mail stays in the
+  inbox, marked "Needs a look". The first sort costs about 2¢; after that only
+  new mail is sorted.
+- Each sweep reads the newest 250 inbox messages per account, plus unopened
+  promos older than 90 days.
+- Drafts are written when you open a thread; overnight pre-drafting is a later run.
+- Holds for offered times stay until you remove them; Hearth doesn't yet clear
+  the others when someone picks a time.
+- Filing Job hunt adds the account's "job hunt" label (where it has one) and
+  archives; the routines repo's daily scan keeps the GitHub issues up to date.
+- Rules can be switched on and off in Sources; editing their conditions comes later.
+- The design's search and compose buttons aren't there yet.
+
 ## M2 Capture
 
 - The share extension only saves what's shared; Hearth reads it with Claude the

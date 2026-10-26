@@ -38,7 +38,7 @@ struct RootView: View {
                 }
             }
             Tab("Inbox", systemImage: "tray", value: AppTab.inbox) {
-                NavigationStack { InboxPlaceholder() }
+                NavigationStack { InboxView() }
             }
             Tab("Plans", systemImage: "calendar", value: AppTab.plans) {
                 NavigationStack { PlansView(showCapture: $showCapture) }

@@ -159,11 +159,14 @@ public struct PhoneContext: Codable, Hashable, Sendable {
     public var rules: HouseRules
     /// Apple (iCloud) events for the next two weeks, so the brief sees the family calendar.
     public var appleEvents: [AgendaEvent]
+    /// The mail rules as the owner set them in Sources; nil keeps the relay's.
+    public var mailRules: [MailRule]?
     public var uploadedAt: Date
 
-    public init(rules: HouseRules, appleEvents: [AgendaEvent] = [], uploadedAt: Date) {
+    public init(rules: HouseRules, appleEvents: [AgendaEvent] = [], mailRules: [MailRule]? = nil, uploadedAt: Date) {
         self.rules = rules
         self.appleEvents = appleEvents
+        self.mailRules = mailRules
         self.uploadedAt = uploadedAt
     }
 }

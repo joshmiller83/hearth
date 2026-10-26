@@ -157,6 +157,40 @@ public struct GmailkitMessageRow: Decodable, Sendable, Equatable {
     public var body_html: String?
     public var attachments: [GmailkitAttachment]?
     public var error: String?
+
+    public init(
+        id: String? = nil, thread_id: String? = nil, account: String, subject: String? = nil, from: String? = nil,
+        to: String? = nil, cc: String? = nil, date: String? = nil, snippet: String? = nil, labels: [String]? = nil,
+        unread: Bool? = nil, github_reason: String? = nil, list_id: String? = nil, delivered_to: String? = nil,
+        body_text: String? = nil, body_html: String? = nil, attachments: [GmailkitAttachment]? = nil, error: String? = nil
+    ) {
+        self.id = id
+        self.thread_id = thread_id
+        self.account = account
+        self.subject = subject
+        self.from = from
+        self.to = to
+        self.cc = cc
+        self.date = date
+        self.snippet = snippet
+        self.labels = labels
+        self.unread = unread
+        self.github_reason = github_reason
+        self.list_id = list_id
+        self.delivered_to = delivered_to
+        self.body_text = body_text
+        self.body_html = body_html
+        self.attachments = attachments
+        self.error = error
+    }
+
+    /// A row for this item, as gmailkit would send it (for fakes).
+    public init(item: MailItem, email: String, body: String? = nil) {
+        self.init(
+            id: item.id, thread_id: item.threadId, account: email, subject: item.subject, from: item.from, to: item.to, cc: item.cc,
+            date: RFC3339.format(item.date), snippet: item.snippet, labels: item.labels, unread: item.unread,
+            github_reason: item.githubReason ?? "", list_id: item.listId ?? "", body_text: body)
+    }
 }
 
 public struct GmailkitAttachment: Decodable, Sendable, Equatable {
@@ -170,6 +204,12 @@ public struct GmailkitLabelRow: Decodable, Sendable, Equatable {
     public var id: String
     public var name: String
     public var type: String?
+
+    public init(id: String, name: String, type: String? = nil) {
+        self.id = id
+        self.name = name
+        self.type = type
+    }
 }
 
 /// Every write tool answers with an object, or `{"error": …}` when gmailkit refused.
