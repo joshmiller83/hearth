@@ -27,7 +27,7 @@ struct HealthAndAuthTests {
             #expect(body.gmailkit?.state == .up)
             #expect(body.accounts?.count == Fixtures.accounts.count)
             #expect(body.household?.partnerName == "Robin")
-            #expect(body.jobs?.map(\.name) == ["calendar", "mail"])
+            #expect(body.jobs?.map(\.name) == ["calendar", "mail", "brief"])
             #expect(body.claude == false)
         }
     }

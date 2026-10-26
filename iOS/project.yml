@@ -75,9 +75,16 @@ targets:
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UIBackgroundModes:
+          - fetch
+          - remote-notification
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.joshmiller83.hearth.refresh
     entitlements:
       path: App/Hearth.entitlements
       properties:
+        # Xcode installs push through the APNs sandbox.
+        aps-environment: development
         com.apple.security.application-groups:
           - group.$(BUNDLE_ID_PREFIX).hearth
         # The relay key, shared with the StandBy widgets so they can refresh at night.

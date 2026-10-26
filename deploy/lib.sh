@@ -21,6 +21,16 @@ LOCAL_URL="http://$HOST:$PORT"
 HOUSEHOLD_FILE="$DATA_DIR/household.json"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 
+# relay_env: the daemon's settings, for running relay commands by hand.
+relay_env() {
+  export HEARTH_DB="$DATA_DIR/data/hearth.sqlite" HEARTH_BACKUP_DIR="$DATA_DIR/backups" \
+    HEARTH_HOUSEHOLD="$HOUSEHOLD_FILE" HEARTH_GMAILKIT_DIR="$GMAILKIT_DIR" \
+    HEARTH_ANTHROPIC_KEY_FILE="${ANTHROPIC_KEY_FILE:-}" \
+    HEARTH_APNS_KEY_FILE="${APNS_KEY_FILE:-}" HEARTH_APNS_KEY_ID="${APNS_KEY_ID:-}" \
+    HEARTH_APNS_TEAM_ID="${APNS_TEAM_ID:-}" HEARTH_APNS_TOPIC="${APNS_TOPIC:-}" \
+    HEARTH_APNS_ENV="${APNS_ENV:-development}"
+}
+
 # wait_for_health <seconds>: true once /v1/health answers.
 wait_for_health() {
   local deadline=$(( $(date +%s) + $1 ))

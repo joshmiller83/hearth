@@ -30,10 +30,16 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
     public var invitesWaiting: Int
     public var repliesReady: Int
     public var signals: Int
-    /// The most pressing thing, for "Needs you".
-    public var topNeed: String?
-    /// The morning brief's headline.
+    /// The first invite waiting, "RSVP: Alumni mixer".
+    public var topInvite: String?
+    /// The first reply waiting, "Reply: Dana Whitfield".
+    public var topReply: String?
+    /// The morning brief's headline, and the day it's for ("2026-10-26").
     public var briefHeadline: String?
+    public var briefDay: String?
+
+    /// The most pressing thing, for "Needs you": an invite before a reply.
+    public var topNeed: String? { topInvite ?? topReply }
 
     public var zone: TimeZone { TimeZone(identifier: timeZone) ?? .current }
 
@@ -43,7 +49,8 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
 
     public init(
         generatedAt: Date, fetchedAt: Date? = nil, ownerName: String, timeZone: String, events: [Event], invitesWaiting: Int,
-        repliesReady: Int, signals: Int, topNeed: String? = nil, briefHeadline: String? = nil
+        repliesReady: Int, signals: Int, topInvite: String? = nil, topReply: String? = nil, briefHeadline: String? = nil,
+        briefDay: String? = nil
     ) {
         self.generatedAt = generatedAt
         self.fetchedAt = fetchedAt
@@ -53,13 +60,15 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
         self.invitesWaiting = invitesWaiting
         self.repliesReady = repliesReady
         self.signals = signals
-        self.topNeed = topNeed
+        self.topInvite = topInvite
+        self.topReply = topReply
         self.briefHeadline = briefHeadline
+        self.briefDay = briefDay
     }
 
     public static func make(
         agenda: Agenda, now: Date, fetchedAt: Date?, repliesReady: Int = 0, signals: Int = 0,
-        briefHeadline: String? = nil
+        brief: Brief? = nil, topReply: String? = nil
     ) -> WidgetSnapshot {
         let household = agenda.household
         let horizon = now.addingTimeInterval(36 * 3600)
@@ -86,10 +95,21 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
             invitesWaiting: waiting.count,
             repliesReady: repliesReady,
             signals: signals,
-            topNeed: waiting.first.map { "RSVP: \($0.title)" },
-            briefHeadline: briefHeadline
+            topInvite: waiting.first.map { "RSVP: \($0.title)" },
+            topReply: topReply,
+            briefHeadline: brief?.headline,
+            briefDay: brief?.day
         )
     }
+
+    /// The brief's headline, only on the day it was written for.
+    public func headline(at date: Date) -> String? {
+        guard let briefHeadline, briefDay == RFC3339.day(date, zone: zone) else { return nil }
+        return briefHeadline
+    }
+
+    /// Everything waiting on the owner.
+    public var needsYou: Int { invitesWaiting + repliesReady + signals }
 
     /// The event the "Next up" widget shows at `date`: the first timed one that
     /// hasn't ended, the partner's left out.

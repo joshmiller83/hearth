@@ -24,7 +24,7 @@ public struct Account: Codable, Hashable, Sendable, Identifiable {
 /// git-ignored file (`deploy/household.json`) and hands it to the phone, so real
 /// names and addresses never enter the repository.
 public struct Household: Codable, Hashable, Sendable {
-    /// The person Hearth works for: "Good morning, Josh."
+    /// The person Hearth works for: "Good morning, Sam."
     public var ownerName: String
     /// The account aliases that are the owner's own (holds and surprise plans go to `primaryAccount`).
     public var ownerAccounts: [String]

@@ -47,6 +47,16 @@ final class WidgetSnapshotTests: XCTestCase {
         check(TodayListView(entry: entry, familyOverride: .systemSmall), named: "standby", standBy: true)
     }
 
+    func testNeedsYouAndBrief() {
+        var withBrief = snapshot
+        withBrief.repliesReady = 4
+        withBrief.briefHeadline = "Two invites and four replies need you. The rest can wait."
+        withBrief.briefDay = "2026-10-26"
+        let entry = HearthEntry(date: Fixtures.now, snapshot: withBrief)
+        check(NeedsYouView(entry: entry, familyOverride: .systemSmall), named: "needs-you", standBy: true)
+        check(BriefView(entry: entry), named: "brief", standBy: true)
+    }
+
     func testNothingLeftToday() {
         let entry = HearthEntry(date: Fixtures.at("2026-10-26T23:30"), snapshot: snapshot)
         check(NextUpView(entry: entry, familyOverride: .systemSmall), named: "late", standBy: true)

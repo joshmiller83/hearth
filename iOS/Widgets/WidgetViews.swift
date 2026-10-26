@@ -193,3 +193,85 @@ struct TodayListView: View {
         }
     }
 }
+
+/// "Needs you": one big number, then what it's made of.
+struct NeedsYouView: View {
+    let entry: HearthEntry
+    var familyOverride: WidgetFamily?
+    @Environment(\.widgetFamily) private var environmentFamily
+    @Environment(\.widgetRenderingMode) private var mode
+
+    var family: WidgetFamily { familyOverride ?? environmentFamily }
+
+    var body: some View {
+        let palette = WidgetPalette(mode: mode)
+        let s = entry.snapshot
+        let parts = [
+            s.invitesWaiting > 0 ? "\(s.invitesWaiting) invite\(s.invitesWaiting == 1 ? "" : "s")" : nil,
+            s.repliesReady > 0 ? "\(s.repliesReady) repl\(s.repliesReady == 1 ? "y" : "ies")" : nil,
+            s.signals > 0 ? "\(s.signals) signal\(s.signals == 1 ? "" : "s")" : nil,
+        ].compactMap { $0 }
+        if family == .accessoryRectangular {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(s.needsYou == 0 ? "Nothing needs you" : "\(s.needsYou) need you")
+                    .font(.system(size: 15, weight: .bold))
+                    .widgetAccentable()
+                Text(parts.joined(separator: " · ")).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("NEEDS YOU").font(.custom(Typeface.bold, size: 11, relativeTo: .caption2)).tracking(0.6)
+                    .foregroundStyle(palette.ember).widgetAccentable()
+                Text("\(s.needsYou)").font(.custom(Typeface.displayHeavy, size: 48, relativeTo: .largeTitle))
+                    .foregroundStyle(palette.ink).widgetAccentable()
+                Spacer(minLength: 0)
+                if s.needsYou == 0 {
+                    Text("All clear.").font(.custom(Typeface.semibold, size: 15, relativeTo: .body)).foregroundStyle(palette.ink)
+                } else {
+                    Text(parts.joined(separator: " · ")).font(.custom(Typeface.semibold, size: 13, relativeTo: .footnote))
+                        .foregroundStyle(palette.ink).lineLimit(1)
+                    if let top = s.topNeed {
+                        Text(top).font(.custom(Typeface.medium, size: 12, relativeTo: .caption)).foregroundStyle(palette.muted).lineLimit(2)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+}
+
+/// "Morning brief": the 6:30 headline. Yesterday's never shows: after
+/// midnight it's on its way again.
+struct BriefView: View {
+    let entry: HearthEntry
+    @Environment(\.widgetRenderingMode) private var mode
+
+    var waiting: String {
+        let parts = Fmt(zone: entry.snapshot.zone).calendar.dateComponents([.hour, .minute], from: entry.date)
+        let minutes = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+        return minutes < 6 * 60 + 30 ? "The brief arrives at 6:30." : "No brief yet today."
+    }
+
+    var body: some View {
+        let palette = WidgetPalette(mode: mode)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: "flame").font(.system(size: 12, weight: .bold))
+                Text("THIS MORNING").font(.custom(Typeface.bold, size: 11, relativeTo: .caption2)).tracking(0.6).lineLimit(1)
+            }
+            .foregroundStyle(palette.ember)
+            .widgetAccentable()
+            Text(entry.snapshot.headline(at: entry.date) ?? waiting)
+                .font(.custom(Typeface.display, size: 19, relativeTo: .headline))
+                .foregroundStyle(palette.ink)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 0)
+            if entry.snapshot.needsYou > 0 {
+                Text("\(entry.snapshot.needsYou) waiting on you").font(.custom(Typeface.semibold, size: 12, relativeTo: .caption))
+                    .foregroundStyle(palette.muted)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}

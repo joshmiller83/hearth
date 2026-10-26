@@ -1,6 +1,7 @@
 import Fluent
 import Foundation
 import HearthKit
+import Jobs
 import RelayCore
 import Vapor
 
@@ -123,5 +124,42 @@ struct RunJobCommand: AsyncCommand {
         }
         context.console.print("\(signature.name) ran.")
         if let bridge = app.relay.google.bridge { await bridge.shutdown() }
+    }
+}
+
+/// `Run brief`: writes today's brief now (and queues its push unless `--no-push`).
+struct BriefCommand: AsyncCommand {
+    struct Signature: CommandSignature {
+        @Flag(name: "no-push", help: "Write it without queueing a push.")
+        var noPush: Bool
+        init() {}
+    }
+
+    var help: String { "Writes today's morning brief now." }
+
+    func run(using context: CommandContext, signature: Signature) async throws {
+        let app = context.application
+        guard let brief = try await BriefJob.write(app.jobContext(), push: !signature.noPush) else {
+            throw CommandFailure("No brief: the morning brief is off, or the relay has no Claude key (HEARTH_ANTHROPIC_KEY_FILE).")
+        }
+        context.console.print(brief.headline)
+        if let idea = brief.kindIdea { context.console.print("Kind idea: \(idea)") }
+    }
+}
+
+/// `Run push-test`: sends a test push to every registered phone now.
+struct PushTestCommand: AsyncCommand {
+    struct Signature: CommandSignature { init() {} }
+
+    var help: String { "Sends a test push to every registered phone." }
+
+    func run(using context: CommandContext, signature: Signature) async throws {
+        let app = context.application
+        guard let apns = app.relay.apns else { throw CommandFailure("Push is off: set the HEARTH_APNS_* settings.") }
+        try await PushQueue.enqueue(
+            PushAlert(title: "Hearth", body: "Pushes work.", kind: "test", urgency: .urgent), quietHours: QuietHours(enabled: false),
+            zone: app.relay.household.zone, now: app.now, db: app.db)
+        let sent = await PushQueue.sendDue(apns: apns, db: app.db, now: app.now, logger: app.logger)
+        context.console.print(sent > 0 ? "Sent." : "Nothing was delivered; see the log.")
     }
 }

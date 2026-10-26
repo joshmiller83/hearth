@@ -45,6 +45,22 @@ iPhone ──https──▶ Cloudflare ──tunnel──▶ cloudflared ──�
    ```bash
    HEARTH_KEY=hrk_… deploy/smoke.sh
    ```
+8. **Optional: the morning brief and push.**
+   - The relay's own Anthropic key (not the phone's; give it a monthly spend
+     limit in the Console), in a file only the service user can read, named by
+     `ANTHROPIC_KEY_FILE`. Without it there's no 6:30 brief, and mail the rules
+     can't place waits in "Needs you" unsorted.
+   - An APNs auth key: developer.apple.com → Keys → +, tick Apple Push
+     Notifications service, and download the `.p8` (you can only download it
+     once). Save it as `~/HearthRelay/secrets/apns.p8` (mode 600), and set
+     `APNS_KEY_FILE`, `APNS_KEY_ID` (shown beside the key) and `APNS_TEAM_ID`.
+
+   Rerun `sudo deploy/install-services.sh` so the daemon picks them up, allow
+   notifications in Hearth's Sources screen, then:
+   ```bash
+   deploy/run.sh push-test
+   deploy/run.sh brief
+   ```
 
 ## Every update
 
@@ -59,8 +75,8 @@ It tests, builds, swaps the binary and restarts the relay. No sudo.
 - `make status`: daemons, local and public health, the deployed commit vs `main`.
 - Logs: `~/HearthRelay/logs/` (relay, backup, watchdog), rotated at 20 MB.
 - Backups: `~/HearthRelay/backups/`, nightly, newest 30 kept.
-- Keys: `bin/Run list-keys`, `bin/Run revoke-key --id <uuid>`.
-- Run a job now: `bin/Run run-job calendar`.
+- Keys: `deploy/run.sh list-keys`, `deploy/run.sh revoke-key --id <uuid>`.
+- Run a job now: `deploy/run.sh run-job calendar` (or `mail`, `brief`).
 
 ## Notes
 

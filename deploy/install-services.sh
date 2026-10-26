@@ -26,6 +26,11 @@ render() {  # render <template> <label>
       -e "s|__PORT__|$PORT|g" \
       -e "s|__GMAILKIT_DIR__|$GMAILKIT_DIR|g" \
       -e "s|__ANTHROPIC_KEY_FILE__|${ANTHROPIC_KEY_FILE:-}|g" \
+      -e "s|__APNS_KEY_FILE__|${APNS_KEY_FILE:-}|g" \
+      -e "s|__APNS_KEY_ID__|${APNS_KEY_ID:-}|g" \
+      -e "s|__APNS_TEAM_ID__|${APNS_TEAM_ID:-}|g" \
+      -e "s|__APNS_TOPIC__|${APNS_TOPIC:-}|g" \
+      -e "s|__APNS_ENV__|${APNS_ENV:-development}|g" \
       -e "s|__SUPPORT_DIR__|$SUPPORT_DIR|g" \
       "$DEPLOY_DIR/launchd/$1" > "$dest"
   chown root:wheel "$dest"

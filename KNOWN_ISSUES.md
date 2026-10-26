@@ -2,6 +2,23 @@
 
 What each milestone left for later. Newest first.
 
+## M4 Today, brief & push
+
+- The 6:30 brief needs the relay's own Claude key (`ANTHROPIC_KEY_FILE`). Until
+  then Today keeps its layout, with needs-you in time order and no kind idea.
+- Push needs an APNs auth key (`APNS_KEY_FILE`, `APNS_KEY_ID`, `APNS_TEAM_ID`;
+  docs/deploy.md step 8) and "Allow notifications" in Sources. `/v1/health`
+  reports `push: false` until both are there.
+- Quiet hours (9 PM to 7 AM) hold everything except family and urgent pushes.
+  Urgent pushes ask for time-sensitive delivery, but the app doesn't have that
+  entitlement yet, so they arrive as ordinary alerts.
+- Pushes use the APNs development environment (installs from Xcode). TestFlight
+  needs `APNS_ENV=production` and a production `aps-environment`.
+- Background refresh is up to iOS. Today catches up when the app opens or a push
+  wakes it; the StandBy widgets also fetch events and the brief from the relay
+  every 30 minutes on their own.
+- "Plan it quietly" opens People, which arrives with M7.
+
 ## M3 Mail triage
 
 - Sorting what no rule places needs the relay's own Claude key

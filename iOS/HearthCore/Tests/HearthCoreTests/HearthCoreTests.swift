@@ -196,16 +196,38 @@ struct TodayTests {
         #expect(today.nextUp?.title == "Coffee chat, agency lead")
         #expect(today.nextUpLabel == "Next up · in 52 min")
         #expect(today.nextUpMeta == "Zoom · landed on work@")
+        // The brief ranked them: the clash first, then the recruiter.
         #expect(
             today.needsYou.map(\.title) == [
-                "RSVP: Alumni mixer", "RSVP: Leaders huddle", "Dana Whitfield: Next steps: Senior Engineer",
+                "RSVP: Leaders huddle", "Dana Whitfield: Next steps: Senior Engineer", "RSVP: Alumni mixer",
                 "Church Office: Trunk or Treat shifts", "Coach Martinez: Practice moved to Thursday",
             ])
-        #expect(today.needsYou[1].detail == "Thu 7 PM · overlaps Bible study")
-        #expect(today.needsYou[2].detail == "Needs you · work · 8:12 AM")
-        #expect(today.sweepLine == "Swept 6 inboxes and every calendar at 10:02 AM. 5 things need you.")
+        #expect(today.needsYou[0].detail == "Thu 7 PM · overlaps Bible study")
+        #expect(today.needsYou[1].detail == "Needs you · work · 8:12 AM")
+        #expect(
+            today.sweepLine == "Swept 6 inboxes and every calendar at 10:02 AM. Two invites and two replies need you. The rest can wait.")
+        #expect(today.kindIdeaFor == "Robin")
+        app.kindIdeaDismissed = true
+        #expect(TodaySummary.make(app: app).kindIdea == nil)
         #expect(today.triage?.map(\.count) == [5, 3, 5, 1])
         #expect(today.comingUp.map(\.title) == ["Jordan's birthday", "Bible study", "Trunk or Treat", "Neighborhood brunch"])
+    }
+}
+
+@Suite("Brief")
+@MainActor
+struct BriefModelTests {
+    @Test func yesterdaysBriefIsIgnored() async {
+        let clock = ManualClock(Fixtures.at("2026-10-27T08:00"))
+        var services = AppServices.fixtures()
+        services.clock = clock
+        let app = AppModel(services: services)
+        await app.refreshAll()
+        #expect(app.brief != nil)
+        #expect(app.todaysBrief == nil)
+        let today = TodaySummary.make(app: app)
+        #expect(today.kindIdea == nil)
+        #expect(today.needsYou.first?.title == "RSVP: Alumni mixer")
     }
 }
 
@@ -269,6 +291,28 @@ struct WidgetSnapshotTests {
         #expect(s.invitesWaiting == 2)
         #expect(s.topNeed == "RSVP: Alumni mixer")
         #expect(s.events.first { $0.title == "Coffee chat, agency lead" }?.hasCall == true)
+    }
+
+    @Test func needsYouCountsEverythingWaiting() {
+        let agenda = Agenda(events: Fixtures.week, household: Fixtures.household)
+        let s = WidgetSnapshot.make(agenda: agenda, now: Fixtures.now, fetchedAt: nil, repliesReady: 3, signals: 1, topReply: "Reply: Dana")
+        #expect(s.needsYou == 6)
+        // Invites come first; a reply shows only when no invite is waiting.
+        #expect(s.topNeed == "RSVP: Alumni mixer")
+        let quiet = WidgetSnapshot.make(
+            agenda: Agenda(events: [], household: Fixtures.household), now: Fixtures.now, fetchedAt: nil, repliesReady: 1,
+            topReply: "Reply: Dana")
+        #expect(quiet.topNeed == "Reply: Dana")
+    }
+
+    @Test func theWidgetFetchesTodaysBriefItself() async throws {
+        let services = AppServices.fixtures(waits: false)
+        try services.database.save(try await FixtureRelay().health(), key: StoreKey.health, now: Fixtures.now)
+        let refreshed = await WidgetRefresh.run(services: services, now: Fixtures.now)
+        let s = try #require(refreshed)
+        #expect(s.headline(at: Fixtures.now) == "Two invites and two replies need you. The rest can wait.")
+        // After midnight it's yesterday's: the widget waits for the next one.
+        #expect(s.headline(at: Fixtures.at("2026-10-27T00:30")) == nil)
     }
 
     @Test func redrawsAtEveryBoundary() {

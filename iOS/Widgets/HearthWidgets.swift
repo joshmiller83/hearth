@@ -9,6 +9,8 @@ struct HearthWidgetBundle: WidgetBundle {
     var body: some Widget {
         NextUpWidget()
         TodayWidget()
+        NeedsYouWidget()
+        BriefWidget()
     }
 }
 
@@ -36,10 +38,14 @@ enum WidgetStore {
             let fresh = await WidgetRefresh.run(services: services, now: now)
         else { return saved }
         var merged = fresh
-        // Counts the widget can't work out alone (replies, signals, the brief) stay from the app's snapshot.
+        // What the widget can't work out alone (replies, signals) stays from the app's snapshot.
         merged.repliesReady = saved.repliesReady
         merged.signals = saved.signals
-        merged.briefHeadline = saved.briefHeadline
+        merged.topReply = saved.topReply
+        if merged.briefHeadline == nil {
+            merged.briefHeadline = saved.briefHeadline
+            merged.briefDay = saved.briefDay
+        }
         try? file.write(merged)
         return merged
     }
@@ -99,6 +105,32 @@ struct TodayWidget: Widget {
         .configurationDisplayName("Today")
         .description("The rest of today across every calendar, and invites waiting on you.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+    }
+}
+
+struct NeedsYouWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "NeedsYou", provider: Provider()) { entry in
+            NeedsYouView(entry: entry)
+                .containerBackground(for: .widget) { Theme.surface }
+                .widgetURL(URL(string: "hearth://today"))
+        }
+        .configurationDisplayName("Needs you")
+        .description("Invites waiting, replies to write, and anything urgent.")
+        .supportedFamilies([.systemSmall, .accessoryRectangular])
+    }
+}
+
+struct BriefWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "Brief", provider: Provider()) { entry in
+            BriefView(entry: entry)
+                .containerBackground(for: .widget) { Theme.surface }
+                .widgetURL(URL(string: "hearth://today"))
+        }
+        .configurationDisplayName("Morning brief")
+        .description("The 6:30 headline: what matters today and what can wait.")
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 

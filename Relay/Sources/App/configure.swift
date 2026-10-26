@@ -29,6 +29,7 @@ public func configure(_ app: Application, config: RelayConfig, google: GoogleAcc
     }
     app.migrations.add(CreateSchema())
     app.migrations.add(CreateMailTriage())
+    app.migrations.add(CreatePushes())
     try await app.autoMigrate()
 
     let household = try config.loadHousehold()
@@ -54,9 +55,10 @@ public func configure(_ app: Application, config: RelayConfig, google: GoogleAcc
         household: household,
         google: access,
         executor: executor,
-        jobs: JobRunner(jobs: [CalendarCacheJob(), MailSweepJob()]),
+        jobs: JobRunner(jobs: [CalendarCacheJob(), MailSweepJob(), BriefJob()]),
         refresher: CalendarRefresher(),
-        claude: claude
+        claude: claude,
+        apns: config.loadAPNs().flatMap { try? APNsClient(config: $0, client: app.client) }
     )
 
     app.failedAuth = FailedAuthLimiter()
@@ -71,6 +73,8 @@ public func configure(_ app: Application, config: RelayConfig, google: GoogleAcc
     app.asyncCommands.use(RevokeKeyCommand(), as: "revoke-key")
     app.asyncCommands.use(BackupCommand(), as: "backup")
     app.asyncCommands.use(RunJobCommand(), as: "run-job")
+    app.asyncCommands.use(BriefCommand(), as: "brief")
+    app.asyncCommands.use(PushTestCommand(), as: "push-test")
 
     if let bridge = access.bridge {
         app.lifecycle.use(BridgeLifecycle(bridge: bridge, warmUp: config.runJobs))
@@ -85,6 +89,11 @@ public func configure(_ app: Application, config: RelayConfig, google: GoogleAcc
             Ticker(name: "actions", every: 30, initialDelay: 10) { app in
                 await app.relay.executor.runDue()
             })
+        app.lifecycle.use(
+            Ticker(name: "pushes", every: 60, initialDelay: 15) { app in
+                guard let apns = app.relay.apns else { return }
+                await PushQueue.sendDue(apns: apns, db: app.db, now: app.now, logger: app.logger)
+            })
         app.lifecycle.use(BackupScheduler())
     }
 
@@ -98,4 +107,5 @@ func routes(_ app: Application) throws {
     try keyed.register(collection: ActionsController())
     try keyed.register(collection: ContextController())
     try keyed.register(collection: MailController())
+    try keyed.register(collection: BriefController())
 }

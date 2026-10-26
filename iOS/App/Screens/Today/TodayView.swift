@@ -25,6 +25,9 @@ struct TodayView: View {
             if !today.needsYou.isEmpty {
                 needsYouCard(today.needsYou)
             }
+            if let idea = today.kindIdea {
+                kindIdeaCard(idea, for: today.kindIdeaFor)
+            }
             if let triage = today.triage {
                 triageCard(triage, newMail: today.newMail)
             }
@@ -145,6 +148,25 @@ struct TodayView: View {
             }
         }
         .accessibilityIdentifier("needs-you")
+    }
+
+    /// The brief's one kind idea: the design's "A small surprise for …" card.
+    func kindIdeaCard(_ idea: String, for person: String?) -> some View {
+        Card(padding: EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16), border: Theme.emberLine) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Avatar(initial: String((person ?? "♥").prefix(1)), size: 42, ring: Theme.ember)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(person.map { "A small idea for \($0)" } ?? "A small idea").eyebrow(Theme.emberSoft)
+                        Text(idea).font(.hCardTitle).foregroundStyle(Theme.ink).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                HStack(spacing: 8) {
+                    Button("Plan it quietly") { tab = .people }.buttonStyle(.pill(.primary))
+                    Button("Not this week") { app.kindIdeaDismissed = true }.buttonStyle(.pill(.secondary))
+                }
+            }
+        }
     }
 
     /// The design's stacked bar: Reply ember, Job hunt ice, Archive stone, Delete dark stone.

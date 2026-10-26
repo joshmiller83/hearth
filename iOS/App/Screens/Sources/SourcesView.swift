@@ -1,6 +1,7 @@
 import HearthCore
 import HearthKit
 import SwiftUI
+import UserNotifications
 
 /// Sources & rules: where Hearth reads from, its keys, and the owner's switches.
 struct SourcesView: View {
@@ -19,6 +20,7 @@ struct SourcesView: View {
             GmailkitCard()
             RelayCard()
             ClaudeCard()
+            NotificationsCard()
             CalendarsCard()
             HowTodayCard()
             RulesCard()
@@ -409,5 +411,56 @@ private struct MailRulesCard: View {
         }
         let count = app.mailRuleMatches(rule)
         return count > 0 ? "\(destination) · \(count) in your inboxes now" : destination
+    }
+}
+
+/// Pushes from the relay: the morning brief, scheduled sends, urgent signals.
+private struct NotificationsCard: View {
+    @Environment(AppModel.self) private var app
+    @State private var status: UNAuthorizationStatus = .notDetermined
+
+    var body: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 12) {
+                    IconTile(symbol: "bell.badge", tint: .ember)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Notifications").font(.hRowTitle).foregroundStyle(Theme.ink)
+                        Text(detail).font(.hMeta).foregroundStyle(Theme.muted)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                switch status {
+                case .notDetermined:
+                    Button("Allow notifications") {
+                        Task {
+                            _ = await Notifications.enable()
+                            status = await Notifications.status()
+                        }
+                    }
+                    .buttonStyle(.pill(.secondary))
+                case .denied:
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                    }
+                    .buttonStyle(.pill(.secondary))
+                default:
+                    EmptyView()
+                }
+            }
+        }
+        .task { status = await Notifications.status() }
+    }
+
+    var detail: String {
+        let push = app.health?.push == true
+        switch status {
+        case .authorized, .provisional, .ephemeral:
+            return push
+                ? "On. The brief arrives after quiet hours; urgent things don't wait."
+                : "On here. The relay needs its APNs key to send them."
+        case .denied: return "Off in Settings."
+        default: return "The 6:30 brief, scheduled sends, and anything urgent. Quiet from 9 PM to 7 AM."
+        }
     }
 }

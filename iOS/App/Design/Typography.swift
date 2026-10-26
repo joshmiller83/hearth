@@ -12,7 +12,7 @@ enum Typeface {
 }
 
 extension Font {
-    /// "Good morning, Josh." 34 pt display.
+    /// "Good morning, Sam." 34 pt display.
     static let hTitle = Font.custom(Typeface.display, size: 34, relativeTo: .largeTitle)
     /// "Hearth" in the header, 18 pt display.
     static let hBrand = Font.custom(Typeface.display, size: 18, relativeTo: .headline)

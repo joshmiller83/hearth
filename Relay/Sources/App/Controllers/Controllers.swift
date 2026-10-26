@@ -25,7 +25,7 @@ struct HealthController: RouteCollection {
             full.household = services.household
             full.jobs = await services.jobs.statuses(req.application.jobContext())
             full.claude = services.claude != nil
-            full.push = false
+            full.push = services.apns != nil
             return try .json(full)
         }
     }
@@ -133,6 +133,33 @@ struct MailController: RouteCollection {
             } catch let error as BridgeError {
                 throw Abort(.badGateway, reason: error.description)
             }
+        }
+    }
+}
+
+struct BriefController: RouteCollection {
+    func boot(routes: any RoutesBuilder) throws {
+        // Today's brief, once the 6:30 job has written it.
+        routes.get("v1", "brief") { req async throws -> Response in
+            let brief = try await Cache(db: req.db).get(Brief.self, Cache.brief)
+            let today = RFC3339.day(req.now, zone: req.relay.household.zone)
+            return try .json(BriefResponse(brief: brief?.day == today ? brief : nil))
+        }
+
+        // The phone's APNs token.
+        routes.post("v1", "devices") { req async throws -> HTTPStatus in
+            let registration = try req.decodeJSON(DeviceRegistration.self)
+            guard registration.token.count >= 32, registration.token.allSatisfy(\.isHexDigit) else {
+                throw Abort(.badRequest, reason: "That isn't an APNs device token.")
+            }
+            if let device = try await DeviceModel.find(registration.token, on: req.db) {
+                device.lastSeen = req.now
+                device.environment = registration.environment
+                try await device.update(on: req.db)
+            } else {
+                try await DeviceModel(token: registration.token, environment: registration.environment, now: req.now).create(on: req.db)
+            }
+            return .noContent
         }
     }
 }

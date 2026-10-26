@@ -134,3 +134,37 @@ struct MailTests {
         #expect(snapshot.removing(account: "home", ids: ["m8", "m9"]).items(in: .archive, account: "home").count == 1)
     }
 }
+
+@Suite("Morning brief")
+struct BriefTests {
+    @Test func theBriefSeesTheDayTheQueuesAndWhatsComing() throws {
+        let agenda = Agenda(events: Fixtures.week, household: Fixtures.household)
+        let triaged = Fixtures.inbox.map {
+            MailRules.classify($0, rules: MailRules.defaults, now: Fixtures.now)
+                ?? TriagedMail(item: $0, queue: .reply, tag: "Needs you", reason: "", sortedBy: .claude)
+        }
+        let mail = MailSnapshot(generatedAt: Fixtures.now, accounts: [], items: triaged, newCount: 16)
+        let input = BriefInput.gather(agenda: agenda, mail: mail, now: Fixtures.now)
+        #expect(input.needsYou.first?.text == "RSVP: Alumni mixer, Wed, Oct 28 · 8:00–9:00 PM")
+        #expect(input.needsYou[1].text.contains("(Overlaps Bible study"))
+        #expect(input.occasions.map(\.title) == ["Jordan's birthday"])
+        #expect(input.queueCounts[.jobHunt] == 3)
+        let request = BriefPrompt.request(input)
+        #expect(request.model == .opus)
+        #expect(request.effort == .medium)
+        let text = try #require(request.messages.first?.text)
+        #expect(text.contains("- 6:30–8:00 PM: Robin is busy: book club [robin]"))
+        #expect(text.contains("Evenings free for both of them: Tue, Wed, Fri, Sat, Sun"))
+        #expect(text.contains("Mail: 16 new since the last sweep."))
+    }
+
+    @Test func unknownIdsAreDroppedFromTheOrder() {
+        let input = BriefInput(
+            now: Fixtures.now, household: Fixtures.household, today: [], needsYou: [.init(id: "a", text: "x")],
+            queueCounts: [:], newMail: 0, occasions: [], freeEvenings: [])
+        let brief = BriefPrompt.brief(.init(headline: "Quiet day.", order: ["b", "a"], kindIdea: "", kindIdeaFor: nil), input: input)
+        #expect(brief.order == ["a"])
+        #expect(brief.kindIdea == nil)
+        #expect(brief.day == "2026-10-26")
+    }
+}

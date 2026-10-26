@@ -54,6 +54,10 @@ public final class AppModel {
     /// The mail sorting rules (Hearth's defaults until the owner changes one).
     public private(set) var mailRules: [MailRule]
     public private(set) var credentialsVersion = 0
+    /// Today's morning brief, when the relay has written one.
+    public private(set) var brief: Brief?
+    /// The kind idea the owner set aside today.
+    public var kindIdeaDismissed = false
 
     public let plans: PlansModel
     public let sources: SourcesModel
@@ -65,6 +69,7 @@ public final class AppModel {
         health = services.database.load(HealthResponse.self, key: StoreKey.health)
         rules = services.database.load(HouseRules.self, key: StoreKey.rules) ?? HouseRules()
         mailRules = services.database.load([MailRule].self, key: StoreKey.mailRules) ?? MailRules.defaults
+        brief = services.database.load(Brief.self, key: StoreKey.brief)
         plans = PlansModel(services: services)
         sources = SourcesModel(services: services)
         capture = CaptureModel(services: services, inbox: services.inbox)
@@ -151,5 +156,28 @@ public final class AppModel {
         await refreshHealth()
         await plans.refresh(force: force)
         await inbox.refresh(force: force)
+        await refreshBrief()
+        plans.publishWidgets()
+    }
+
+    /// Today's brief; yesterday's doesn't count.
+    public var todaysBrief: Brief? {
+        guard let brief, brief.day == RFC3339.day(now, zone: household.zone) else { return nil }
+        return brief
+    }
+
+    public func refreshBrief() async {
+        guard let relay, let fresh = try? await relay.brief() else { return }
+        brief = fresh
+        try? services.database.save(fresh, key: StoreKey.brief, now: now)
+    }
+
+    /// Hands the phone's APNs token to the relay.
+    public func registerForPush(token: Data, environment: String) async {
+        let hex = token.map { byte in
+            let digits = Array("0123456789abcdef")
+            return String([digits[Int(byte >> 4)], digits[Int(byte & 0x0F)]])
+        }.joined()
+        try? await relay?.registerDevice(DeviceRegistration(token: hex, environment: environment))
     }
 }

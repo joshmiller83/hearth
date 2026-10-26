@@ -21,6 +21,12 @@ public struct RelayConfig: Sendable {
     public var householdFile: String?
     /// A file holding the relay's own Anthropic key (the brief, sorting leftovers).
     public var anthropicKeyFile: String?
+    /// The APNs key (.p8), its id, the team, and the app's bundle id; push is off without them.
+    public var apnsKeyFile: String?
+    public var apnsKeyId: String?
+    public var apnsTeamId: String?
+    public var apnsTopic = "com.joshmiller83.hearth"
+    public var apnsSandbox = true
     /// The git commit being served, from bin/VERSION.
     public var commit: String?
     /// Run the timed jobs (only `serve` does; commands and tests don't).
@@ -52,6 +58,11 @@ public struct RelayConfig: Sendable {
         if let v = value("HEARTH_GMAILKIT_PYTHON") { c.gmailkitPython = v }
         if let v = value("HEARTH_HOUSEHOLD") { c.householdFile = v }
         if let v = value("HEARTH_ANTHROPIC_KEY_FILE") { c.anthropicKeyFile = v }
+        if let v = value("HEARTH_APNS_KEY_FILE") { c.apnsKeyFile = v }
+        if let v = value("HEARTH_APNS_KEY_ID") { c.apnsKeyId = v }
+        if let v = value("HEARTH_APNS_TEAM_ID") { c.apnsTeamId = v }
+        if let v = value("HEARTH_APNS_TOPIC") { c.apnsTopic = v }
+        if let v = value("HEARTH_APNS_ENV") { c.apnsSandbox = v != "production" }
         c.commit = value("HEARTH_COMMIT")
         return c
     }
@@ -67,6 +78,14 @@ public struct RelayConfig: Sendable {
         guard let path = householdFile else { return .placeholder }
         let data = try Data(contentsOf: URL(fileURLWithPath: path))
         return try HearthJSON.decode(Household.self, from: data)
+    }
+
+    /// The APNs settings, when all of them are present and the key reads.
+    public func loadAPNs() -> APNsConfig? {
+        guard let path = apnsKeyFile, let keyId = apnsKeyId, let teamId = apnsTeamId,
+            let pem = try? String(contentsOfFile: path, encoding: .utf8)
+        else { return nil }
+        return APNsConfig(keyPEM: pem, keyId: keyId, teamId: teamId, topic: apnsTopic, sandbox: apnsSandbox)
     }
 
     /// The relay's Anthropic key, trimmed, if a key file is configured and readable.

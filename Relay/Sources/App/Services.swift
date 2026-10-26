@@ -35,6 +35,8 @@ public struct RelayServices: Sendable {
     public var jobs: JobRunner
     public var refresher: CalendarRefresher
     public var claude: ClaudeClient?
+    /// Push, when an APNs key is installed.
+    public var apns: APNsClient?
 }
 
 extension Application {

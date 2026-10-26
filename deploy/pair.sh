@@ -4,8 +4,9 @@
 # needs typing, and it isn't printed. No sudo.
 source "$(dirname "$0")/lib.sh"
 
-link="$(cd "$DATA_DIR" && HEARTH_DB="$DATA_DIR/data/hearth.sqlite" HEARTH_HOUSEHOLD="$HOUSEHOLD_FILE" \
-  "$BIN" pair --url "https://$PUBLIC_HOSTNAME" --label "${1:-iPhone}" 2>/dev/null | grep '^hearth://pair' | tail -1)"
+relay_env
+link="$(cd "$DATA_DIR" && "$BIN" pair --url "https://$PUBLIC_HOSTNAME" --label "${1:-iPhone}" 2>/dev/null \
+  | grep '^hearth://pair' | tail -1)"
 [[ -n "$link" ]] || die "couldn't make a pairing link (is $BIN built?)"
 out="$(mktemp -d)/hearth-pair.png"
 swift "$DEPLOY_DIR/qr.swift" "$link" "$out" || die "couldn't draw the QR code"

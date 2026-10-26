@@ -114,6 +114,16 @@ public actor FixtureRelay: RelayAPI {
             items: triaged, newCount: triaged.count, jobHuntLabels: ["work": "Label_7"])
     }
 
+    public func brief() async throws -> Brief? {
+        Brief(
+            generatedAt: Fixtures.now.addingTimeInterval(-3 * 3600), day: "2026-10-26",
+            headline: "Two invites and two replies need you. The rest can wait.",
+            order: ["g:work:primary:huddle", "work:m1", "g:school:primary:mixer", "home:m2"],
+            kindIdea: "Thursday evening is free for you both. Robin mentioned the new Thai place.", kindIdeaFor: "Robin")
+    }
+
+    public func registerDevice(_ registration: DeviceRegistration) async throws {}
+
     public func thread(account: String, threadId: String) async throws -> ThreadResponse {
         let item = Fixtures.inbox.first { $0.threadId == threadId }
         let body =

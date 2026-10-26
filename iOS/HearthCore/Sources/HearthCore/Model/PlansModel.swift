@@ -129,7 +129,12 @@ public final class PlansModel {
     }
 
     func publishWidgets() {
-        services.widgets.publish(WidgetSnapshot.make(agenda: agenda, now: now, fetchedAt: fetchedAt))
+        services.widgets.publish(
+            WidgetSnapshot.make(
+                agenda: agenda, now: now, fetchedAt: fetchedAt,
+                repliesReady: app?.inbox.snapshot?.items(in: .reply).count ?? 0,
+                brief: app?.todaysBrief,
+                topReply: app?.inbox.snapshot?.items(in: .reply).first.map { "Reply: \($0.item.senderName)" }))
     }
 
     // MARK: Answering invites

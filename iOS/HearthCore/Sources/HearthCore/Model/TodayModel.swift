@@ -24,11 +24,14 @@ public struct TodaySummary: Sendable, Equatable {
     /// Queue counts for "Inbox, triaged", in queue order; nil before the first sweep.
     public var triage: [(queue: MailQueue, count: Int)]?
     public var newMail: Int
+    /// The brief's kind idea, unless set aside today.
+    public var kindIdea: String?
+    public var kindIdeaFor: String?
 
     public static func == (a: TodaySummary, b: TodaySummary) -> Bool {
         a.dateLine == b.dateLine && a.greeting == b.greeting && a.sweepLine == b.sweepLine && a.nextUp == b.nextUp
             && a.needsYou == b.needsYou && a.comingUp == b.comingUp && a.newMail == b.newMail
-            && a.triage?.map(\.count) == b.triage?.map(\.count)
+            && a.triage?.map(\.count) == b.triage?.map(\.count) && a.kindIdea == b.kindIdea
     }
 
     @MainActor
@@ -59,6 +62,14 @@ public struct TodaySummary: Sendable, Equatable {
                     detail: "\(reply.tag) · \(item.account) · \(app.inbox.time(item.date))"))
         }
 
+        // The brief decides the order; anything it didn't rank keeps its place after.
+        if let order = app.todaysBrief?.order, !order.isEmpty {
+            let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
+            needs = needs.enumerated().sorted { a, b in
+                (rank[a.element.id] ?? order.count + a.offset) < (rank[b.element.id] ?? order.count + b.offset)
+            }.map(\.element)
+        }
+
         var sweep = "Add the relay in Sources to bring in mail and Google calendars."
         if let fetched = plans.fetchedAt {
             let count = needs.count
@@ -69,7 +80,7 @@ public struct TodaySummary: Sendable, Equatable {
                 ? "Swept \(accounts ?? mail!.accounts.count) inboxes and every calendar"
                 : accounts.map { "Checked \($0) accounts and every calendar" }
                     ?? "Checked every calendar"
-            sweep = "\(what) at \(fmt.time(max(fetched, mail?.generatedAt ?? fetched))). \(things)"
+            sweep = "\(what) at \(fmt.time(max(fetched, mail?.generatedAt ?? fetched))). \(app.todaysBrief?.headline ?? things)"
         }
 
         let next = agenda.nextUp(now: now)
@@ -101,7 +112,9 @@ public struct TodaySummary: Sendable, Equatable {
             needsYou: needs,
             comingUp: Array(coming),
             triage: mail.map { snapshot in MailQueue.allCases.map { ($0, snapshot.items(in: $0).count) } },
-            newMail: mail?.newCount ?? 0
+            newMail: mail?.newCount ?? 0,
+            kindIdea: app.kindIdeaDismissed ? nil : app.todaysBrief?.kindIdea,
+            kindIdeaFor: app.todaysBrief?.kindIdeaFor
         )
     }
 }

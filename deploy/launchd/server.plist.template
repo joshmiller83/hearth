@@ -40,6 +40,16 @@
     <string>__GMAILKIT_DIR__</string>
     <key>HEARTH_ANTHROPIC_KEY_FILE</key>
     <string>__ANTHROPIC_KEY_FILE__</string>
+    <key>HEARTH_APNS_KEY_FILE</key>
+    <string>__APNS_KEY_FILE__</string>
+    <key>HEARTH_APNS_KEY_ID</key>
+    <string>__APNS_KEY_ID__</string>
+    <key>HEARTH_APNS_TEAM_ID</key>
+    <string>__APNS_TEAM_ID__</string>
+    <key>HEARTH_APNS_TOPIC</key>
+    <string>__APNS_TOPIC__</string>
+    <key>HEARTH_APNS_ENV</key>
+    <string>__APNS_ENV__</string>
     <key>LOG_LEVEL</key>
     <string>info</string>
     <key>HOME</key>
