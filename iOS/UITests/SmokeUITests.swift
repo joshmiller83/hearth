@@ -42,6 +42,23 @@ final class SmokeUITests: XCTestCase {
     }
 
     @MainActor
+    func testAQuickNoteGoesOnFamilyAndComesBackOff() {
+        let app = launch()
+        app.buttons["Add to Hearth: a photo or a note"].tap()
+        let note = app.textFields["Quick note"]
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        note.tap()
+        note.typeText("dentist for robin thurs 3pm")
+        app.buttons["Have Claude read it"].tap()
+        XCTAssertTrue(app.staticTexts["Robin: dentist"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["One hour is a guess"].exists)
+        app.buttons["Add to Family"].tap()
+        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout: 5))
+        app.buttons["Undo"].tap()
+        XCTAssertTrue(app.buttons["Add to Family"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testSourcesShowsTheRelayAndRules() {
         let app = launch()
         app.buttons["Sources and rules"].tap()

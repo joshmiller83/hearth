@@ -70,27 +70,6 @@ struct SignalsPlaceholder: View {
     }
 }
 
-struct CapturePlaceholder: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ComingSoon(
-                title: "Add to Hearth", milestone: "M2", symbol: "camera",
-                lines: [
-                    "Snap a flyer or a page of the fridge calendar, share a screenshot, or say a quick note.",
-                    "Claude turns each one into plans you check, then they land on Family with an alarm.",
-                ]
-            )
-            .toolbar(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-            }
-        }
-        .preferredColorScheme(.dark)
-    }
-}
-
 struct AroundTownPlaceholder: View {
     var body: some View {
         Card(padding: EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)) {

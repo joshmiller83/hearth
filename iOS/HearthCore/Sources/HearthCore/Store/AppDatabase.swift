@@ -97,6 +97,25 @@ public final class AppDatabase: Sendable {
                     );
                     """)
         }
+        migrator.registerMigration("v2-captures") { db in
+            // Every capture Claude read: what it was, what it found, what was added (for Undo).
+            try db.execute(
+                sql: """
+                    CREATE TABLE captures (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        source TEXT NOT NULL,
+                        createdAt DOUBLE NOT NULL,
+                        updatedAt DOUBLE NOT NULL,
+                        status TEXT NOT NULL,
+                        summary TEXT NOT NULL,
+                        reading BLOB,
+                        addedEvents TEXT NOT NULL DEFAULT '[]',
+                        addedReminders TEXT NOT NULL DEFAULT '[]',
+                        thumbnail BLOB
+                    );
+                    CREATE INDEX captures_recent ON captures (createdAt);
+                    """)
+        }
         return migrator
     }
 
@@ -136,4 +155,74 @@ public enum StoreKey {
     public static let health = "relay.health"
     public static let rules = "house.rules"
     public static let appleCalendars = "apple.calendars"
+}
+
+/// A capture as stored: what it was, what Claude read, and what got added.
+public struct CaptureRecord: Codable, Sendable, Equatable, Identifiable, FetchableRecord, PersistableRecord {
+    public enum Status: String, Codable, Sendable {
+        /// Claude read it; the owner hasn't added it yet.
+        case read
+        case added
+        /// Added, then taken back within the undo window.
+        case undone
+        case failed
+    }
+
+    public static let databaseTableName = "captures"
+
+    public var id: String
+    public var source: String
+    public var createdAt: Date
+    public var updatedAt: Date
+    public var status: Status
+    public var summary: String
+    public var reading: Data?
+    public var addedEvents: String
+    public var addedReminders: String
+    public var thumbnail: Data?
+
+    public init(
+        id: String, source: String, createdAt: Date, status: Status, summary: String, reading: CaptureReading?,
+        thumbnail: Data? = nil
+    ) {
+        self.id = id
+        self.source = source
+        self.createdAt = createdAt
+        self.updatedAt = createdAt
+        self.status = status
+        self.summary = summary
+        self.reading = reading.flatMap { try? HearthJSON.encode($0) }
+        self.addedEvents = "[]"
+        self.addedReminders = "[]"
+        self.thumbnail = thumbnail
+    }
+
+    public var decodedReading: CaptureReading? {
+        reading.flatMap { try? HearthJSON.decode(CaptureReading.self, from: $0) }
+    }
+
+    public var eventIds: [String] {
+        get { (try? JSONDecoder().decode([String].self, from: Data(addedEvents.utf8))) ?? [] }
+        set { addedEvents = String(decoding: (try? JSONEncoder().encode(newValue)) ?? Data("[]".utf8), as: UTF8.self) }
+    }
+
+    public var reminderIds: [String] {
+        get { (try? JSONDecoder().decode([String].self, from: Data(addedReminders.utf8))) ?? [] }
+        set { addedReminders = String(decoding: (try? JSONEncoder().encode(newValue)) ?? Data("[]".utf8), as: UTF8.self) }
+    }
+}
+
+extension AppDatabase {
+    public func save(_ record: CaptureRecord) throws {
+        try writer.write { db in try record.save(db) }
+    }
+
+    /// The newest captures first.
+    public func recentCaptures(limit: Int = 10) -> [CaptureRecord] {
+        (try? writer.read { db in try CaptureRecord.order(Column("createdAt").desc).limit(limit).fetchAll(db) }) ?? []
+    }
+
+    public func capture(id: String) -> CaptureRecord? {
+        try? writer.read { db in try CaptureRecord.fetchOne(db, key: id) }
+    }
 }

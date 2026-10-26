@@ -14,6 +14,8 @@ public struct AppServices: Sendable {
     /// Builds a Claude client from the key in Sources.
     public var makeClaude: @Sendable (String) -> ClaudeClient
     public var widgets: any WidgetPublishing
+    /// Where the share extension leaves things for the app.
+    public var inbox: SharedInbox?
     /// How undo windows wait. Tests pass one that returns at once.
     public var wait: @Sendable (TimeInterval) async -> Void
 
@@ -25,6 +27,7 @@ public struct AppServices: Sendable {
         makeRelay: @escaping @Sendable (RelayCredentials) -> any RelayAPI,
         makeClaude: @escaping @Sendable (String) -> ClaudeClient,
         widgets: any WidgetPublishing = NoWidgets(),
+        inbox: SharedInbox? = nil,
         wait: @escaping @Sendable (TimeInterval) async -> Void = { try? await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
     ) {
         self.secrets = secrets
@@ -34,6 +37,7 @@ public struct AppServices: Sendable {
         self.makeRelay = makeRelay
         self.makeClaude = makeClaude
         self.widgets = widgets
+        self.inbox = inbox
         self.wait = wait
     }
 }
@@ -51,6 +55,7 @@ public final class AppModel {
 
     public let plans: PlansModel
     public let sources: SourcesModel
+    public let capture: CaptureModel
 
     public init(services: AppServices) {
         self.services = services
@@ -58,8 +63,10 @@ public final class AppModel {
         rules = services.database.load(HouseRules.self, key: StoreKey.rules) ?? HouseRules()
         plans = PlansModel(services: services)
         sources = SourcesModel(services: services)
+        capture = CaptureModel(services: services, inbox: services.inbox)
         plans.app = self
         sources.app = self
+        capture.app = self
     }
 
     public var now: Date { services.clock.now }

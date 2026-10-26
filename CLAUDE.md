@@ -17,7 +17,9 @@ summarizes it.
 - `iOS/`: `project.yml` (XcodeGen; the .xcodeproj isn't committed), `HearthCore`
   (app logic, macOS-testable), `App` (SwiftUI), `Widgets` (StandBy widgets),
   `Share` (share extension), tests.
-- `deploy/`: the relay's launchd kit. `docs/`: architecture, deploy, design map.
+- `deploy/`: the relay's launchd kit (`pair.sh` shows a QR code that pairs a
+  phone). `docs/`: architecture, deploy. `Tools/Eval`: `make eval`, the live
+  prompt checks (macOS only, never in CI, costs cents).
 
 ## Rules that matter
 

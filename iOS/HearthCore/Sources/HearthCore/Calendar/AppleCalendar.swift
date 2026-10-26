@@ -12,6 +12,74 @@ public protocol AppleCalendar: Sendable {
     func events(from: Date, to: Date, calendarIds: Set<String>?) async -> [AgendaEvent]
     /// Yields whenever the calendar database changes (another app, iCloud sync).
     func changes() -> AsyncStream<Void>
+
+    /// Adds events to one calendar; returns their identifiers (for Undo).
+    func add(_ drafts: [EventDraft], to calendarId: String) async throws -> [String]
+    /// Removes events Hearth just added (Undo).
+    func removeEvents(_ ids: [String]) async throws
+    func remindersAccess() -> CalendarAccess
+    func requestRemindersAccess() async -> CalendarAccess
+    /// Adds reminders to the default list; returns their identifiers.
+    func add(_ reminders: [ReminderDraft]) async throws -> [String]
+    func removeReminders(_ ids: [String]) async throws
+}
+
+/// An event Hearth is about to add, already in instants.
+public struct EventDraft: Sendable, Equatable {
+    public var title: String
+    public var start: Date
+    public var end: Date
+    public var isAllDay: Bool
+    public var location: String?
+    public var notes: String?
+    public var tentative: Bool
+    /// When to alert (nil: no alarm).
+    public var alarm: Date?
+    public var repeats: CaptureEntry.Repeat?
+
+    public init(
+        title: String, start: Date, end: Date, isAllDay: Bool = false, location: String? = nil, notes: String? = nil,
+        tentative: Bool = false, alarm: Date? = nil, repeats: CaptureEntry.Repeat? = nil
+    ) {
+        self.title = title
+        self.start = start
+        self.end = end
+        self.isAllDay = isAllDay
+        self.location = location
+        self.notes = notes
+        self.tentative = tentative
+        self.alarm = alarm
+        self.repeats = repeats
+    }
+}
+
+/// A reminder Hearth is about to add.
+public struct ReminderDraft: Sendable, Equatable {
+    public var title: String
+    public var due: Date
+    public var notes: String?
+    public var repeats: CaptureEntry.Repeat?
+
+    public init(title: String, due: Date, notes: String? = nil, repeats: CaptureEntry.Repeat? = nil) {
+        self.title = title
+        self.due = due
+        self.notes = notes
+        self.repeats = repeats
+    }
+}
+
+public enum CalendarWriteError: Error, Equatable, Sendable, CustomStringConvertible {
+    case noAccess
+    case noCalendar(String)
+    case failed(String)
+
+    public var description: String {
+        switch self {
+        case .noAccess: "Hearth needs calendar access for that. Allow it in Sources."
+        case .noCalendar(let name): "There's no calendar called \(name) on this phone."
+        case .failed(let detail): "The calendar didn't take it (\(detail))."
+        }
+    }
 }
 
 public enum CalendarAccess: String, Sendable, Equatable {
@@ -130,6 +198,101 @@ public actor EventKitCalendar: AppleCalendar {
             transparent: event.availability == .free,
             url: event.url?.absoluteString
         )
+    }
+
+    // MARK: Writing
+
+    public func add(_ drafts: [EventDraft], to calendarId: String) throws -> [String] {
+        guard access() == .full else { throw CalendarWriteError.noAccess }
+        guard let calendar = store.calendar(withIdentifier: calendarId) else { throw CalendarWriteError.noCalendar(calendarId) }
+        var ids: [String] = []
+        do {
+            for draft in drafts {
+                let event = EKEvent(eventStore: store)
+                event.calendar = calendar
+                event.title = draft.title
+                event.startDate = draft.start
+                event.endDate = draft.end
+                event.isAllDay = draft.isAllDay
+                event.location = draft.location
+                event.notes = draft.notes
+                event.availability = draft.tentative ? .tentative : .busy
+                if let alarm = draft.alarm { event.addAlarm(EKAlarm(absoluteDate: alarm)) }
+                if let repeats = draft.repeats { event.addRecurrenceRule(Self.rule(repeats)) }
+                try store.save(event, span: .thisEvent, commit: false)
+                if let id = event.eventIdentifier { ids.append(id) }
+            }
+            try store.commit()
+        } catch {
+            store.reset()
+            throw CalendarWriteError.failed(error.localizedDescription)
+        }
+        return ids
+    }
+
+    public func removeEvents(_ ids: [String]) throws {
+        for id in ids {
+            if let event = store.event(withIdentifier: id) { try store.remove(event, span: .futureEvents, commit: false) }
+        }
+        try store.commit()
+    }
+
+    public nonisolated func remindersAccess() -> CalendarAccess {
+        switch EKEventStore.authorizationStatus(for: .reminder) {
+        case .fullAccess: .full
+        case .writeOnly: .writeOnly
+        case .notDetermined: .notDetermined
+        default: .denied
+        }
+    }
+
+    public func requestRemindersAccess() async -> CalendarAccess {
+        _ = try? await store.requestFullAccessToReminders()
+        return remindersAccess()
+    }
+
+    public func add(_ reminders: [ReminderDraft]) throws -> [String] {
+        guard remindersAccess() == .full else { throw CalendarWriteError.noAccess }
+        guard let list = store.defaultCalendarForNewReminders() else { throw CalendarWriteError.noCalendar("Reminders") }
+        var ids: [String] = []
+        do {
+            for draft in reminders {
+                let reminder = EKReminder(eventStore: store)
+                reminder.calendar = list
+                reminder.title = draft.title
+                reminder.notes = draft.notes
+                let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: draft.due)
+                reminder.dueDateComponents = parts
+                reminder.addAlarm(EKAlarm(absoluteDate: draft.due))
+                if let repeats = draft.repeats { reminder.addRecurrenceRule(Self.rule(repeats)) }
+                try store.save(reminder, commit: false)
+                ids.append(reminder.calendarItemIdentifier)
+            }
+            try store.commit()
+        } catch {
+            store.reset()
+            throw CalendarWriteError.failed(error.localizedDescription)
+        }
+        return ids
+    }
+
+    public func removeReminders(_ ids: [String]) throws {
+        for id in ids {
+            if let reminder = store.calendarItem(withIdentifier: id) as? EKReminder { try store.remove(reminder, commit: false) }
+        }
+        try store.commit()
+    }
+
+    static func rule(_ repeats: CaptureEntry.Repeat) -> EKRecurrenceRule {
+        let frequency: EKRecurrenceFrequency =
+            switch repeats.frequency {
+            case .daily: .daily
+            case .weekly: .weekly
+            case .monthly: .monthly
+            case .yearly: .yearly
+            }
+        let end = repeats.until.flatMap { RFC3339.date($0, zone: .current) }.map { EKRecurrenceEnd(end: $0) }
+        return EKRecurrenceRule(recurrenceWith: frequency, interval: max(1, repeats.interval), end: end)
     }
 
     public nonisolated func changes() -> AsyncStream<Void> {

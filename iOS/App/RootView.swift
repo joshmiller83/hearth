@@ -50,7 +50,7 @@ struct RootView: View {
                 NavigationStack { AskPlaceholder() }
             }
         }
-        .sheet(isPresented: $showCapture) { CapturePlaceholder() }
+        .sheet(isPresented: $showCapture) { CaptureView() }
         .onOpenURL { url in open(url) }
         .alert(
             "Connect to \(pairing?.relay.host ?? "this relay")?",

@@ -61,7 +61,7 @@ relay-it: ## Read-only run of the calendar job against the real gmailkit (iMac o
 	  .build/debug/Run run-job calendar
 
 eval: ## Live Claude prompt checks on synthetic flyers and notes (costs cents; needs ANTHROPIC_API_KEY)
-	swift run --package-path Packages/HearthKit hearth-eval
+	swift run --package-path Tools/Eval hearth-eval
 
 status: ## The deployed relay: daemons, health, deployed commit vs main
 	deploy/status.sh

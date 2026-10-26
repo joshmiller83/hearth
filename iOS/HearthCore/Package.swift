@@ -25,6 +25,6 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
-        .testTarget(name: "HearthCoreTests", dependencies: ["HearthCore"]),
+        .testTarget(name: "HearthCoreTests", dependencies: ["HearthCore"], resources: [.copy("capture-paper-calendar.json")]),
     ]
 )
