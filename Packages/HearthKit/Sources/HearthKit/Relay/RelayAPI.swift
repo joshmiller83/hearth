@@ -1,0 +1,169 @@
+import Foundation
+
+/// The relay's routes. Every one needs `Authorization: Bearer <relay key>`
+/// except `health` without the key, which answers only "ok".
+public enum RelayPath {
+    public static let health = "/v1/health"
+    public static let calendarEvents = "/v1/calendar/events"
+    public static let mailSnapshot = "/v1/mail/snapshot"
+    public static let mailThreads = "/v1/mail/threads"
+    public static let actions = "/v1/actions"
+    public static let brief = "/v1/brief"
+    public static let devices = "/v1/devices"
+    public static let context = "/v1/context"
+    public static let tools = "/v1/tools"
+    public static let signals = "/v1/signals"
+    public static let feeds = "/v1/feeds"
+}
+
+/// Every error body: `{"error": true, "reason": "<a sentence for the owner>"}`.
+public struct APIErrorBody: Codable, Equatable, Sendable {
+    public var error: Bool
+    public var reason: String
+
+    public init(reason: String) {
+        self.error = true
+        self.reason = reason
+    }
+}
+
+/// gmailkit, as the relay sees it.
+public struct BridgeStatus: Codable, Hashable, Sendable {
+    public enum State: String, Codable, Sendable {
+        case up
+        case starting
+        case down
+    }
+
+    public var state: State
+    public var detail: String?
+    public var since: Date?
+
+    public init(state: State, detail: String? = nil, since: Date? = nil) {
+        self.state = state
+        self.detail = detail
+        self.since = since
+    }
+}
+
+/// When each of the relay's jobs last ran, for the Sources screen.
+public struct JobStatus: Codable, Hashable, Sendable, Identifiable {
+    public var name: String
+    public var lastRun: Date?
+    public var lastSuccess: Date?
+    public var lastError: String?
+    public var nextRun: Date?
+    public var id: String { name }
+
+    public init(name: String, lastRun: Date? = nil, lastSuccess: Date? = nil, lastError: String? = nil, nextRun: Date? = nil) {
+        self.name = name
+        self.lastRun = lastRun
+        self.lastSuccess = lastSuccess
+        self.lastError = lastError
+        self.nextRun = nextRun
+    }
+}
+
+/// `GET /v1/health`. Without the key: just `status` and `version`. With it, the rest.
+public struct HealthResponse: Codable, Hashable, Sendable {
+    public var status: String
+    public var version: String
+    public var commit: String?
+    public var now: Date?
+    public var gmailkit: BridgeStatus?
+    public var accounts: [Account]?
+    public var household: Household?
+    public var jobs: [JobStatus]?
+    /// True when the relay has its own Claude key (the brief, sorting leftovers).
+    public var claude: Bool?
+    /// True when the relay can send pushes (an APNs key is installed).
+    public var push: Bool?
+
+    public init(
+        status: String, version: String, commit: String? = nil, now: Date? = nil, gmailkit: BridgeStatus? = nil,
+        accounts: [Account]? = nil, household: Household? = nil, jobs: [JobStatus]? = nil,
+        claude: Bool? = nil, push: Bool? = nil
+    ) {
+        self.status = status
+        self.version = version
+        self.commit = commit
+        self.now = now
+        self.gmailkit = gmailkit
+        self.accounts = accounts
+        self.household = household
+        self.jobs = jobs
+        self.claude = claude
+        self.push = push
+    }
+}
+
+/// A source the relay couldn't read on its last pass ("ek: token expired").
+public struct SourceProblem: Codable, Hashable, Sendable {
+    public var source: String
+    public var message: String
+
+    public init(source: String, message: String) {
+        self.source = source
+        self.message = message
+    }
+}
+
+/// `GET /v1/calendar/events?from=…&to=…[&refresh=1]`: every Google calendar,
+/// partner events already reduced to busy-only.
+public struct EventsResponse: Codable, Hashable, Sendable {
+    public var events: [AgendaEvent]
+    public var calendars: [CalendarInfo]
+    public var fetchedAt: Date
+    public var problems: [SourceProblem]
+
+    public init(events: [AgendaEvent], calendars: [CalendarInfo], fetchedAt: Date, problems: [SourceProblem] = []) {
+        self.events = events
+        self.calendars = calendars
+        self.fetchedAt = fetchedAt
+        self.problems = problems
+    }
+}
+
+/// `POST /v1/actions`: approved actions to run now or at their `notBefore`.
+public struct ActionBatch: Codable, Hashable, Sendable {
+    public var actions: [ApprovedAction]
+
+    public init(actions: [ApprovedAction]) {
+        self.actions = actions
+    }
+}
+
+/// The answer to `POST /v1/actions` and `GET /v1/actions?ids=…`.
+public struct ActionStatuses: Codable, Hashable, Sendable {
+    public var actions: [ActionStatus]
+
+    public init(actions: [ActionStatus]) {
+        self.actions = actions
+    }
+}
+
+/// `DELETE /v1/actions/:id` cancels a pending action (Undo, or a scheduled send
+/// taken back). The answer is its status.
+public struct CancelResponse: Codable, Hashable, Sendable {
+    public var action: ActionStatus
+
+    public init(action: ActionStatus) {
+        self.action = action
+    }
+}
+
+/// `POST /v1/context`: what the phone knows that the relay's jobs need — the
+/// owner's switches, the Apple calendars (EventKit lives on the phone), and
+/// the notes the brief and people ideas draw on.
+public struct PhoneContext: Codable, Hashable, Sendable {
+    public var rules: HouseRules
+    /// Apple (iCloud) events for the next two weeks, so the brief sees the family calendar.
+    public var appleEvents: [AgendaEvent]
+    public var uploadedAt: Date
+
+    public init(rules: HouseRules, appleEvents: [AgendaEvent] = [], uploadedAt: Date) {
+        self.rules = rules
+        self.appleEvents = appleEvents
+        self.uploadedAt = uploadedAt
+    }
+}

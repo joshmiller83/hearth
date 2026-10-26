@@ -1,0 +1,160 @@
+# One workflow, narrow and quick. `changes` decides which parts a commit touched;
+# only those jobs run, in parallel; `gate` is the single check that sums them up
+# (today it reports, it doesn't block: pushes to main are allowed; to make it a
+# required check later, add `gate` to the main ruleset — no edit here needed).
+#
+# Not here on purpose: simulator, UI and snapshot tests, live Claude calls,
+# device builds, deploys. Those run on the iMac (`make test-all`, `make eval`).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# Every main commit keeps its own result; only superseded PR runs are cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: What changed
+    runs-on: ubuntu-slim
+    timeout-minutes: 3
+    outputs:
+      kit: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.kit == 'true' }}
+      relay: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.relay == 'true' }}
+      ios: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.ios == 'true' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            workflow: &workflow
+              - '.github/workflows/**'
+              - '.swift-format'
+            kit:
+              - *workflow
+              - 'Packages/HearthKit/**'
+            relay:
+              - *workflow
+              - 'Packages/HearthKit/**'
+              - 'Relay/**'
+            ios:
+              - *workflow
+              - 'Packages/HearthKit/**'
+              - 'iOS/**'
+
+  kit:
+    name: HearthKit (Linux)
+    needs: changes
+    if: needs.changes.outputs.kit == 'true'
+    runs-on: ubuntu-24.04
+    container: swift:6.2-noble
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Lint
+        run: swift format lint --strict --recursive Packages/HearthKit/Sources Packages/HearthKit/Tests Packages/HearthKit/Package.swift
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Packages/HearthKit/.build
+          key: kit-linux-6.2-${{ hashFiles('Packages/HearthKit/Package.swift') }}-${{ hashFiles('Packages/HearthKit/Sources/**') }}
+          restore-keys: kit-linux-6.2-
+      - name: Test
+        run: swift test --package-path Packages/HearthKit
+
+  relay:
+    name: Relay (Linux)
+    needs: changes
+    if: needs.changes.outputs.relay == 'true'
+    runs-on: ubuntu-24.04
+    container: swift:6.2-noble
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install SQLite headers
+        run: apt-get update -qq && apt-get install -y -qq --no-install-recommends libsqlite3-dev
+      - name: Lint
+        run: swift format lint --strict --recursive Relay/Sources Relay/Tests
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Relay/.build
+          key: relay-linux-6.2-${{ hashFiles('Relay/Package.resolved') }}-${{ hashFiles('Packages/HearthKit/Package.swift') }}
+          restore-keys: relay-linux-6.2-
+      - name: Test
+        run: swift test --package-path Relay
+
+  ios:
+    name: iOS (macOS build)
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-26
+    timeout-minutes: 25
+    env:
+      XCODEGEN_VERSION: 2.46.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Use Xcode 26.3 (the iMac's)
+        run: |
+          if [ -d /Applications/Xcode_26.3.app ]; then
+            echo "DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Xcode 26.3 isn't on this runner; using $(xcode-select -p)"
+          fi
+      - name: Toolchain
+        run: xcodebuild -version && swift --version
+      - name: Lint
+        run: swift format lint --strict --recursive iOS/App iOS/HearthCore/Sources iOS/HearthCore/Tests iOS/Widgets iOS/Share iOS/Tests iOS/UITests iOS/SnapshotTests
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            iOS/HearthCore/.build
+            ~/xcodegen
+          key: ios-26.3-${{ hashFiles('iOS/HearthCore/Package.resolved', 'iOS/HearthCore/Package.swift') }}-xcodegen-${{ env.XCODEGEN_VERSION }}
+          restore-keys: ios-26.3-
+      - name: HearthCore tests (macOS, no simulator)
+        run: swift test --package-path iOS/HearthCore
+      - name: Install XcodeGen
+        run: |
+          if [ ! -x ~/xcodegen/bin/xcodegen ]; then
+            curl -fsSL "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip" -o /tmp/xcodegen.zip
+            unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen-unzipped
+            rm -rf ~/xcodegen && mv /tmp/xcodegen-unzipped/xcodegen ~/xcodegen
+          fi
+          ~/xcodegen/bin/xcodegen --version
+      - name: Generate the project
+        run: cp iOS/Config/Local.xcconfig.example iOS/Config/Local.xcconfig && ~/xcodegen/bin/xcodegen generate --spec iOS/project.yml
+      - name: Build the app for the simulator
+        run: |
+          xcodebuild build -quiet \
+            -project iOS/Hearth.xcodeproj -scheme Hearth \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+  gate:
+    name: gate
+    needs: [changes, kit, relay, ios]
+    if: always()
+    runs-on: ubuntu-slim
+    timeout-minutes: 2
+    steps:
+      - name: Sum up
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          # Skipped jobs (nothing they cover changed) count as passing.
+          if echo "$RESULTS" | grep -Eq '"result": "(failure|cancelled)"'; then
+            echo "::error::A CI job failed or was cancelled."
+            exit 1
+          fi
+          echo "All the jobs this commit needed passed."

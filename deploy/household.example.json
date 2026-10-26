@@ -1,0 +1,13 @@
+{
+  "ownerName": "Sam",
+  "ownerAccounts": ["work", "home", "school", "town"],
+  "primaryAccount": "work",
+  "partnerName": "Robin",
+  "partnerAccounts": ["robin"],
+  "guardedAccounts": ["robin", "kid"],
+  "familyCalendar": "Family",
+  "timeZone": "America/New_York",
+  "town": "Maple Grove",
+  "latitude": 40.21,
+  "longitude": -77.0
+}

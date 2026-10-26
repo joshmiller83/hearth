@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- hearth-relay. System daemon: starts at boot, before anyone logs in, runs as
+     __SERVICE_USER__ (not root), listens only on __HOST__:__PORT__, and is restarted
+     by launchd whenever it exits (deploy/update.sh relies on that). It starts
+     gmailkit as its child; PATH includes /usr/local/bin so gmailkit can reach `gh`
+     for its master key (no login keychain is unlocked for a daemon). -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+  <key>UserName</key>
+  <string>__SERVICE_USER__</string>
+  <key>GroupName</key>
+  <string>staff</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__BIN__</string>
+    <string>serve</string>
+    <string>--env</string>
+    <string>production</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__DATA_DIR__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HEARTH_HOST</key>
+    <string>__HOST__</string>
+    <key>HEARTH_PORT</key>
+    <string>__PORT__</string>
+    <key>HEARTH_DB</key>
+    <string>__DATA_DIR__/data/hearth.sqlite</string>
+    <key>HEARTH_BACKUP_DIR</key>
+    <string>__DATA_DIR__/backups</string>
+    <key>HEARTH_HOUSEHOLD</key>
+    <string>__DATA_DIR__/household.json</string>
+    <key>HEARTH_GMAILKIT_DIR</key>
+    <string>__GMAILKIT_DIR__</string>
+    <key>HEARTH_ANTHROPIC_KEY_FILE</key>
+    <string>__ANTHROPIC_KEY_FILE__</string>
+    <key>LOG_LEVEL</key>
+    <string>info</string>
+    <key>HOME</key>
+    <string>/Users/__SERVICE_USER__</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>5</integer>
+
+  <key>StandardOutPath</key>
+  <string>__DATA_DIR__/logs/relay.log</string>
+  <key>StandardErrorPath</key>
+  <string>__DATA_DIR__/logs/relay.log</string>
+</dict>
+</plist>

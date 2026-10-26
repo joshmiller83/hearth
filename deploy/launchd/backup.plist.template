@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Nightly database backup at 3:25. `backup` writes a consistent copy with
+     VACUUM INTO while the server keeps running, and keeps the newest 30. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+  <key>UserName</key>
+  <string>__SERVICE_USER__</string>
+  <key>GroupName</key>
+  <string>staff</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__BIN__</string>
+    <string>backup</string>
+    <string>--env</string>
+    <string>production</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__DATA_DIR__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HEARTH_DB</key>
+    <string>__DATA_DIR__/data/hearth.sqlite</string>
+    <key>HEARTH_BACKUP_DIR</key>
+    <string>__DATA_DIR__/backups</string>
+    <key>HOME</key>
+    <string>/Users/__SERVICE_USER__</string>
+  </dict>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>25</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__DATA_DIR__/logs/backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>__DATA_DIR__/logs/backup.log</string>
+</dict>
+</plist>

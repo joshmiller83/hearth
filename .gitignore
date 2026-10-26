@@ -1,0 +1,33 @@
+.DS_Store
+xcuserdata/
+DerivedData/
+build/
+dist/
+.build/
+.swiftpm/
+Package.resolved.bak
+
+# XcodeGen output: iOS/project.yml is the source of truth (run `make project`).
+iOS/Hearth.xcodeproj/
+
+# Personal signing settings (copy iOS/Config/Local.xcconfig.example)
+iOS/Config/Local.xcconfig
+
+# Relay data never belongs in git
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+Relay/data/
+
+# Real deploy settings and household details for this machine
+# (copy deploy/config.env.example and deploy/household.example.json)
+deploy/config.env
+deploy/household.json
+
+# Secrets: Anthropic and APNs keys, tokens
+*.p8
+secrets/
+.env
+
+# Live eval runs write their outputs here
+evals/out/

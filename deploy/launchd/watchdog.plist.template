@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Every 2 minutes: restart the relay if it's running but not answering (launchd's
+     KeepAlive only catches exits, not hangs), re-load it if it was unloaded, and keep
+     its logs from growing without bound. Runs as root so it can restart the daemon. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__SUPPORT_DIR__/watchdog.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>120</integer>
+  <key>StandardOutPath</key>
+  <string>__DATA_DIR__/logs/watchdog.log</string>
+  <key>StandardErrorPath</key>
+  <string>__DATA_DIR__/logs/watchdog.log</string>
+</dict>
+</plist>
