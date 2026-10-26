@@ -63,6 +63,7 @@ public func configure(_ app: Application, config: RelayConfig, google: GoogleAcc
     app.middleware.use(APIErrorMiddleware())
 
     app.asyncCommands.use(IssueKeyCommand(), as: "issue-key")
+    app.asyncCommands.use(PairCommand(), as: "pair")
     app.asyncCommands.use(ListKeysCommand(), as: "list-keys")
     app.asyncCommands.use(RevokeKeyCommand(), as: "revoke-key")
     app.asyncCommands.use(BackupCommand(), as: "backup")

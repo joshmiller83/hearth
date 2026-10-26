@@ -99,6 +99,20 @@ public final class SourcesModel {
         }
     }
 
+    /// Saves what a `hearth://pair` link carried (after the owner confirmed it), then checks it.
+    public func pair(_ link: PairLink) async {
+        do {
+            try services.secrets.write(link.relay.absoluteString, for: .relayURL)
+            try services.secrets.write(link.key, for: .relayKey)
+        } catch {
+            relayCheck = .failed("Couldn't save to the Keychain (\(error)).")
+            return
+        }
+        relayURLText = link.relay.absoluteString
+        app?.credentialsChanged()
+        await checkRelay()
+    }
+
     public func forgetRelay() {
         try? services.secrets.write(nil, for: .relayKey)
         app?.credentialsChanged()

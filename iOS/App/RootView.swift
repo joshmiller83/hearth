@@ -22,6 +22,7 @@ struct RootView: View {
     @State private var tab: AppTab = .today
     @State private var showCapture = false
     @State private var todayPath: [Destination] = []
+    @State private var pairing: PairLink?
 
     var body: some View {
         TabView(selection: $tab) {
@@ -51,12 +52,30 @@ struct RootView: View {
         }
         .sheet(isPresented: $showCapture) { CapturePlaceholder() }
         .onOpenURL { url in open(url) }
+        .alert(
+            "Connect to \(pairing?.relay.host ?? "this relay")?",
+            isPresented: Binding(get: { pairing != nil }, set: { if !$0 { pairing = nil } }),
+            presenting: pairing
+        ) { link in
+            Button("Connect") {
+                tab = .today
+                todayPath = [.sources]
+                Task { await app.sources.pair(link) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { link in
+            Text("Hearth will read your mail and Google calendars through \(link.relay.host ?? "it"). Only connect to your own relay.")
+        }
         .task { await app.refreshAll() }
     }
 
     /// `hearth://plans`, `hearth://today`, `hearth://sources`, `hearth://inbox`.
     func open(_ url: URL) {
         guard url.scheme == "hearth" else { return }
+        if let link = PairLink(url: url) {
+            pairing = link
+            return
+        }
         switch url.host {
         case "plans": tab = .plans
         case "inbox": tab = .inbox

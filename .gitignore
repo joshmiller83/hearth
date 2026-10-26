@@ -26,7 +26,7 @@ deploy/household.json
 
 # Secrets: Anthropic and APNs keys, tokens
 *.p8
-secrets/
+/secrets/
 .env
 
 # Live eval runs write their outputs here

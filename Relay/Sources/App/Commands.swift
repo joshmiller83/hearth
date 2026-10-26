@@ -23,6 +23,34 @@ struct IssueKeyCommand: AsyncCommand {
     }
 }
 
+/// `Run pair --url https://hearth.example.com --label iPhone`: a new key inside a
+/// `hearth://pair` link, for a QR code the phone's camera opens (deploy/pair.sh
+/// draws it). The phone asks before it saves anything.
+struct PairCommand: AsyncCommand {
+    struct Signature: CommandSignature {
+        @Option(name: "url", help: "The relay's public address, e.g. https://hearth.example.com")
+        var url: String?
+        @Option(name: "label", help: "What the key is for.")
+        var label: String?
+        init() {}
+    }
+
+    var help: String { "Makes a relay key and prints a hearth://pair link that carries it." }
+
+    func run(using context: CommandContext, signature: Signature) async throws {
+        guard let url = signature.url, url.hasPrefix("https://") else {
+            throw CommandFailure("Usage: Run pair --url https://<relay host> [--label iPhone]")
+        }
+        let app = context.application
+        let key = try await RelayKeys.issue(label: signature.label ?? "iPhone", on: app.db, now: app.now)
+        var parts = URLComponents()
+        parts.scheme = "hearth"
+        parts.host = "pair"
+        parts.queryItems = [URLQueryItem(name: "relay", value: url), URLQueryItem(name: "key", value: key)]
+        context.console.print(parts.string ?? "")
+    }
+}
+
 /// `Run list-keys`
 struct ListKeysCommand: AsyncCommand {
     struct Signature: CommandSignature { init() {} }

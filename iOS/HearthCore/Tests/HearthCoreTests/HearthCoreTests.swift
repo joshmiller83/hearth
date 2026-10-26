@@ -62,6 +62,16 @@ struct RelayClientTests {
         #expect(RelayCredentials.normalize(text)?.absoluteString == expected)
     }
 
+    @Test func pairLinksCarryAnHTTPSRelayAndAKey() throws {
+        let link = try #require(
+            PairLink(url: URL(string: "hearth://pair?relay=https://hearth.example.com&key=hrk_abcdefghijklmnopqrstuvwxyz")!))
+        #expect(link.relay.absoluteString == "https://hearth.example.com")
+        #expect(link.key == "hrk_abcdefghijklmnopqrstuvwxyz")
+        #expect(PairLink(url: URL(string: "hearth://pair?relay=http://evil.example&key=hrk_abcdefghijklmnopqrstuvwxyz")!) == nil)
+        #expect(PairLink(url: URL(string: "hearth://pair?relay=https://hearth.example.com&key=short")!) == nil)
+        #expect(PairLink(url: URL(string: "https://pair?relay=https://hearth.example.com&key=hrk_abcdefghijklmnopqrstuvwxyz")!) == nil)
+    }
+
     @Test func plainHTTPToTheInternetIsRefused() {
         #expect(RelayCredentials.normalize("http://hearth.example.com") == nil)
         #expect(RelayCredentials.normalize("") == nil)
