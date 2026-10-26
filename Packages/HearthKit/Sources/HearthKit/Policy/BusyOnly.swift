@@ -24,3 +24,19 @@ public enum BusyOnly {
         return "\(partnerName ?? "Busy") is busy: \(event.title)"
     }
 }
+
+/// Surprise plans carry a marker in their notes (the phone adds it when it holds
+/// time for one), so the agenda, the brief and the StandBy widgets can keep them
+/// quiet on a shared nightstand.
+public enum SurpriseMarker {
+    public static let tag = "#hearth-surprise"
+
+    public static func isSurprise(_ event: AgendaEvent) -> Bool {
+        event.notes?.contains(tag) == true
+    }
+
+    /// Notes for a surprise hold: what the owner wrote, then the marker.
+    public static func notes(_ text: String?) -> String {
+        [text, tag].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: "\n\n")
+    }
+}

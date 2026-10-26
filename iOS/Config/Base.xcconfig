@@ -1,0 +1,11 @@
+// Shared build settings. Put your own values in Config/Local.xcconfig
+// (copy Local.xcconfig.example); that file is git-ignored.
+
+// Your Apple developer Team ID (Xcode > Settings > Accounts; a free Personal Team works).
+DEVELOPMENT_TEAM =
+
+// Reverse-DNS prefix for the bundle ids and the App Group. Change it if you build
+// under your own team, since bundle ids are unique per Apple account.
+BUNDLE_ID_PREFIX = com.joshmiller83
+
+#include? "Local.xcconfig"

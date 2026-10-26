@@ -1,0 +1,204 @@
+# Generate Hearth.xcodeproj with `make project` (XcodeGen). The project isn't
+# committed: this file is the source of truth, so it can't drift.
+name: Hearth
+options:
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1"
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    # Colors and fonts come from Theme (App/Design); Xcode's generated asset symbols would clash.
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: NO
+packages:
+  HearthCore:
+    path: HearthCore
+  # The same path HearthCore uses, so SwiftPM sees one package.
+  HearthKit:
+    path: ../Packages/HearthKit
+  SnapshotTesting:
+    url: https://github.com/pointfreeco/swift-snapshot-testing
+    exactVersion: 1.19.6
+targets:
+  Hearth:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes:
+          - "Resources/Fonts/**"
+      # A folder reference keeps each font beside its OFL.txt in the bundle.
+      - path: App/Resources/Fonts
+        type: folder
+        buildPhase: resources
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Hearth
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        LSRequiresIPhoneOS: true
+        HearthAppGroup: group.$(BUNDLE_ID_PREFIX).hearth
+        HearthKeychainGroup: $(AppIdentifierPrefix)$(BUNDLE_ID_PREFIX).hearth.shared
+        NSCalendarsFullAccessUsageDescription: Hearth reads your iCloud calendars, like Family and Birthdays, to build one agenda with your Google calendars. It adds an event only after you approve it.
+        UIAppFonts:
+          - Fonts/Figtree/Figtree-Regular.ttf
+          - Fonts/Figtree/Figtree-Medium.ttf
+          - Fonts/Figtree/Figtree-SemiBold.ttf
+          - Fonts/Figtree/Figtree-Bold.ttf
+          - Fonts/BricolageGrotesque/BricolageGrotesque-Bold.ttf
+          - Fonts/BricolageGrotesque/BricolageGrotesque-ExtraBold.ttf
+        CFBundleURLTypes:
+          - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER)
+            CFBundleURLSchemes:
+              - hearth
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UILaunchScreen:
+          UIColorName: Bg
+        UIUserInterfaceStyle: Dark
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    entitlements:
+      path: App/Hearth.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.$(BUNDLE_ID_PREFIX).hearth
+        # The relay key, shared with the StandBy widgets so they can refresh at night.
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(BUNDLE_ID_PREFIX).hearth.shared
+    settings:
+      base:
+        PRODUCT_NAME: Hearth
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).hearth
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - target: HearthWidgets
+      - package: HearthCore
+      - package: HearthKit
+        product: HearthKit
+      - package: HearthKit
+        product: HearthKitTestSupport
+  HearthWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widgets
+      # The design tokens and fonts, shared with the app.
+      - App/Design/Theme.swift
+      - App/Design/Typography.swift
+      - path: App/Resources/Fonts
+        type: folder
+        buildPhase: resources
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Hearth
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        HearthAppGroup: group.$(BUNDLE_ID_PREFIX).hearth
+        HearthKeychainGroup: $(AppIdentifierPrefix)$(BUNDLE_ID_PREFIX).hearth.shared
+        NSCalendarsFullAccessUsageDescription: Hearth's widgets show your iCloud calendars next to your Google ones.
+        UIAppFonts:
+          - Fonts/Figtree/Figtree-Regular.ttf
+          - Fonts/Figtree/Figtree-Medium.ttf
+          - Fonts/Figtree/Figtree-SemiBold.ttf
+          - Fonts/Figtree/Figtree-Bold.ttf
+          - Fonts/BricolageGrotesque/BricolageGrotesque-Bold.ttf
+          - Fonts/BricolageGrotesque/BricolageGrotesque-ExtraBold.ttf
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widgets/HearthWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.$(BUNDLE_ID_PREFIX).hearth
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(BUNDLE_ID_PREFIX).hearth.shared
+    settings:
+      base:
+        PRODUCT_NAME: HearthWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).hearth.widgets
+        SKIP_INSTALL: YES
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
+    dependencies:
+      - package: HearthCore
+      - package: HearthKit
+        product: HearthKit
+      - package: HearthKit
+        product: HearthKitTestSupport
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+  HearthTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: Hearth
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).hearth.tests
+        GENERATE_INFOPLIST_FILE: YES
+  HearthSnapshotTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - SnapshotTests
+      # The StandBy widgets' views (and the tokens they use), compiled in so
+      # they can be snapshotted too.
+      - Widgets/WidgetViews.swift
+      - App/Design/Theme.swift
+      - App/Design/Typography.swift
+    dependencies:
+      - target: Hearth
+      - package: SnapshotTesting
+      - sdk: WidgetKit.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).hearth.snapshottests
+        GENERATE_INFOPLIST_FILE: YES
+  HearthUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: Hearth
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).hearth.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Hearth
+schemes:
+  Hearth:
+    build:
+      targets:
+        Hearth: all
+    run:
+      config: Debug
+      commandLineArguments:
+        "-UITestFixtures": false
+    test:
+      config: Debug
+      targets:
+        - HearthTests
+        - HearthSnapshotTests
+        - HearthUITests
+    archive:
+      config: Release

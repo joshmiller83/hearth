@@ -41,7 +41,7 @@ test-all: test project ## Everything: the packages, then app, UI and snapshot te
 	  -destination 'platform=iOS Simulator,name=$(SIMULATOR)' -derivedDataPath $(DERIVED)
 
 snapshots: project ## Snapshot tests only (set RECORD=1 to re-record)
-	SNAPSHOT_RECORD=$(RECORD) xcodebuild test -quiet -project iOS/Hearth.xcodeproj -scheme Hearth \
+	TEST_RUNNER_SNAPSHOT_TESTING_RECORD=$(if $(RECORD),all,missing) xcodebuild test -quiet -project iOS/Hearth.xcodeproj -scheme Hearth \
 	  -destination 'platform=iOS Simulator,name=$(SIMULATOR)' -derivedDataPath $(DERIVED) -only-testing:HearthSnapshotTests
 
 lint: ## swift format lint, as CI runs it

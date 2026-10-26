@@ -1,0 +1,83 @@
+import Foundation
+import HearthKit
+
+/// What the Today screen shows, worked out from the other models. A value, not
+/// state: the screen rebuilds it whenever they change.
+public struct TodaySummary: Sendable, Equatable {
+    public struct NeedsYou: Sendable, Equatable, Identifiable {
+        public enum Kind: Sendable, Equatable { case invite, reply, signal }
+        public var id: String
+        public var kind: Kind
+        public var title: String
+        public var detail: String
+    }
+
+    public var dateLine: String
+    public var greeting: String
+    public var sweepLine: String
+    public var nextUp: AgendaEvent?
+    public var nextUpLabel: String?
+    public var nextUpMeta: String?
+    public var needsYou: [NeedsYou]
+    /// The next few days' plans, after today.
+    public var comingUp: [AgendaEvent]
+
+    @MainActor
+    public static func make(app: AppModel) -> TodaySummary {
+        let now = app.now
+        let household = app.household
+        let fmt = household.fmt
+        let plans = app.plans
+        let agenda = plans.agenda
+
+        let hour = fmt.calendar.component(.hour, from: now)
+        let part = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"
+        let greeting = household.ownerName == Household.placeholder.ownerName ? "Good \(part)." : "Good \(part), \(household.ownerName)."
+
+        var needs: [NeedsYou] = []
+        for invite in agenda.waitingOnMe(now: now) where plans.replies[invite.id] == nil {
+            var detail = fmt.weekday(invite.start) + " " + fmt.time(invite.start, compact: true)
+            if let other = agenda.conflicts(with: invite).first { detail += " · overlaps \(other.title)" }
+            needs.append(NeedsYou(id: invite.id, kind: .invite, title: "RSVP: \(invite.title)", detail: detail))
+        }
+
+        var sweep = "Add the relay in Sources to bring in mail and Google calendars."
+        if let fetched = plans.fetchedAt {
+            let count = needs.count
+            let things = count == 0 ? "Nothing needs you right now." : count == 1 ? "One thing needs you." : "\(count) things need you."
+            let accounts = app.health?.accounts?.count
+            let what = accounts.map { "Checked \($0) accounts and every calendar" } ?? "Checked every calendar"
+            sweep = "\(what) at \(fmt.time(fetched)). \(things)"
+        }
+
+        let next = agenda.nextUp(now: now)
+        var label: String?
+        var meta: String?
+        if let next {
+            let minutes = fmt.minutesUntil(next.start, now: now)
+            label = minutes <= 0 ? "Next up · now" : "Next up · " + fmt.relative(next.start, now: now)
+            var parts: [String] = []
+            if let service = next.meetingService { parts.append(service) }
+            if let account = next.source.account { parts.append("landed on \(account)@") } else { parts.append(next.source.label) }
+            meta = parts.joined(separator: " · ")
+        }
+
+        let calendar = fmt.calendar
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
+        let horizon = calendar.date(byAdding: .day, value: 6, to: tomorrow) ?? now
+        let coming = agenda.events
+            .filter { $0.start >= tomorrow && $0.start < horizon && !$0.busyOnly && $0.myResponse != .declined && !$0.isWaitingOnMe }
+            .prefix(4)
+
+        return TodaySummary(
+            dateLine: fmt.longDay(now).uppercased(),
+            greeting: greeting,
+            sweepLine: sweep,
+            nextUp: next,
+            nextUpLabel: label,
+            nextUpMeta: meta,
+            needsYou: needs,
+            comingUp: Array(coming)
+        )
+    }
+}

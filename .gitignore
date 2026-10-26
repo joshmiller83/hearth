@@ -31,3 +31,4 @@ secrets/
 
 # Live eval runs write their outputs here
 evals/out/
+iOS/Config/device.env
