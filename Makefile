@@ -12,7 +12,7 @@ SWIFT_SOURCES = Packages/HearthKit/Sources Packages/HearthKit/Tests Packages/Hea
   Relay/Sources Relay/Tests $(wildcard iOS/App iOS/HearthCore/Sources iOS/HearthCore/Tests iOS/Widgets iOS/Share iOS/Tests iOS/UITests iOS/SnapshotTests)
 
 .PHONY: help test test-kit test-relay test-core test-all project build snapshots lint format \
-        install-phone relay-it eval status deploy
+        install-phone relay-it eval status deploy bridges
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-14s %s\n", $$1, $$2}'
@@ -68,3 +68,6 @@ status: ## The deployed relay: daemons, health, deployed commit vs main
 
 deploy: ## Test, build and restart the relay (no sudo)
 	deploy/update.sh
+
+bridges: ## Build and restart the message bridges at deploy/bridges/versions.env (no sudo)
+	deploy/bridges/update.sh

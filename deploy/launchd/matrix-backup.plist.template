@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Nightly backup of the message bridges at 3:35, ten minutes after the relay's:
+     the homeserver's and bridges' databases, their configs and keys, newest 30 kept
+     (deploy/bridges/backup.sh, installed beside config.env). -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+  <key>UserName</key>
+  <string>__SERVICE_USER__</string>
+  <key>GroupName</key>
+  <string>staff</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__SUPPORT_DIR__/bridges-backup.sh</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/__SERVICE_USER__</string>
+  </dict>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>35</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__DATA_DIR__/logs/backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>__DATA_DIR__/logs/backup.log</string>
+</dict>
+</plist>

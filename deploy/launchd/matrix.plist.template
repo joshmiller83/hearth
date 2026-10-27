@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Synapse, the message bridges' private Matrix homeserver. System daemon like the
+     relay: starts at boot, runs as __SERVICE_USER__, and is restarted by launchd
+     whenever it exits (deploy/bridges/update.sh relies on that). hearth.yaml, read
+     after homeserver.yaml, keeps it on 127.0.0.1 with federation off. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+  <key>UserName</key>
+  <string>__SERVICE_USER__</string>
+  <key>GroupName</key>
+  <string>staff</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__SYNAPSE_VENV__/bin/python</string>
+    <string>-m</string>
+    <string>synapse.app.homeserver</string>
+    <string>--config-path</string>
+    <string>__SYNAPSE_DIR__/homeserver.yaml</string>
+    <string>--config-path</string>
+    <string>__SYNAPSE_DIR__/hearth.yaml</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__SYNAPSE_DIR__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/__SERVICE_USER__</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>__DATA_DIR__/logs/matrix.log</string>
+  <key>StandardErrorPath</key>
+  <string>__DATA_DIR__/logs/matrix.log</string>
+</dict>
+</plist>

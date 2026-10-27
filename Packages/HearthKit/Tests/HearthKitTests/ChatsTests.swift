@@ -95,6 +95,6 @@ struct ChatsTests {
         #expect(!AskPrompt.tools(accounts: ["home"]).contains { $0.name == AskTool.chatsSearch })
         let tools = AskPrompt.tools(accounts: ["home"], texts: true)
         #expect(tools.map(\.name).suffix(2) == [AskTool.chatsSearch, AskTool.proposeActions])
-        #expect(AskPrompt.system(household: Fixtures.household, now: Fixtures.now, texts: true).contains("recent text messages"))
+        #expect(AskPrompt.system(household: Fixtures.household, now: Fixtures.now, texts: true).contains("recent texts and chats"))
     }
 }

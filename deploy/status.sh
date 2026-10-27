@@ -26,3 +26,7 @@ printf 'DB size: %s\n' "$(du -h "$DATA_DIR"/data/*.sqlite 2>/dev/null | awk '{pr
 echo
 echo "Last log lines ($DATA_DIR/logs/relay.log):"
 tail -n 8 "$DATA_DIR/logs/relay.log" 2>/dev/null
+
+if [[ -n "${BRIDGES:-}" ]]; then
+  "$DEPLOY_DIR/bridges/status.sh"
+fi

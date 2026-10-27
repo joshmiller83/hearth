@@ -4,7 +4,8 @@
      __SERVICE_USER__ (not root), listens only on __HOST__:__PORT__, and is restarted
      by launchd whenever it exits (deploy/update.sh relies on that). It starts
      gmailkit as its child; PATH includes /usr/local/bin so gmailkit can reach `gh`
-     for its master key (no login keychain is unlocked for a daemon). -->
+     for its master key (no login keychain is unlocked for a daemon). The HEARTH_MATRIX_*
+     settings are empty unless BRIDGES has bridges for the relay to read. -->
 <plist version="1.0">
 <dict>
   <key>Label</key>
@@ -50,6 +51,14 @@
     <string>__APNS_TOPIC__</string>
     <key>HEARTH_APNS_ENV</key>
     <string>__APNS_ENV__</string>
+    <key>HEARTH_BRIDGES</key>
+    <string>__BRIDGES__</string>
+    <key>HEARTH_MATRIX_URL</key>
+    <string>__MATRIX_URL__</string>
+    <key>HEARTH_MATRIX_TOKEN_FILE</key>
+    <string>__MATRIX_TOKEN_FILE__</string>
+    <key>HEARTH_MATRIX_USER</key>
+    <string>__MATRIX_USER__</string>
     <key>LOG_LEVEL</key>
     <string>info</string>
     <key>HOME</key>

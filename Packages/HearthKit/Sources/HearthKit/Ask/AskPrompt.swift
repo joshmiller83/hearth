@@ -7,7 +7,7 @@ public enum AskTool {
     public static let agenda = "agenda"
     public static let freeTime = "free_time"
     public static let peopleGet = "people_get"
-    /// Text messages (iMessage and SMS), when the Mac's helper can read them.
+    /// Text messages (iMessage and SMS) and bridged chats (WhatsApp, Messenger), when the Mac can read them.
     public static let chatsSearch = "chats_search"
     /// Ends the turn: the proposals wait on the phone for the owner's tap.
     public static let proposeActions = "propose_actions"
@@ -22,10 +22,11 @@ public enum AskPrompt {
         let owner = household.ownerName.isEmpty ? "the owner" : household.ownerName
         let partner = household.partnerName ?? "their partner"
         let accounts = household.ownerAccounts.joined(separator: ", ")
+        let chats = texts ? ", and their recent texts and chats (iMessage, SMS, and WhatsApp or Messenger if connected)" : ""
         return """
             You are Hearth, \(owner)'s household assistant, answering in the Ask tab of their iPhone app. Through your tools \
             you can read their Gmail (accounts: \(accounts.isEmpty ? "all" : accounts)), every calendar merged (Google and \
-            iCloud), their free time and their contacts\(texts ? ", and their recent text messages (iMessage and SMS)" : ""). \
+            iCloud), their free time and their contacts\(chats). \
             You can't change anything yourself: when something should be done, \
             propose it with propose_actions, and \(owner) approves each step with a tap.
 
@@ -110,7 +111,8 @@ public enum AskPrompt {
                 ClaudeTool(
                     name: AskTool.chatsSearch,
                     description: """
-                        Search the owner's text messages (iMessage and SMS, the last 60 days). Every word of `query` must \
+                        Search the owner's texts and chats (iMessage and SMS, and WhatsApp or Messenger where the Mac \
+                        bridges them; the last 60 days). Each result says which. Every word of `query` must \
                         appear; leave it empty to see a conversation's latest messages. Returns up to 20 messages, newest \
                         first: who sent each (a contact's name where there is one), when, the conversation and the text.
                         """,

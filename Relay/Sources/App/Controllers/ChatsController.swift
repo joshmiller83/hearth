@@ -3,8 +3,8 @@ import HearthKit
 import RelayCore
 import Vapor
 
-/// Texts, read only: the conversations `hearth-messages` exported and the ones
-/// waiting on the owner. Nothing here can send.
+/// Texts and bridged chats, read only: the conversations `hearth-messages` exported and
+/// the bridges job read, and the ones waiting on the owner. Nothing here can send.
 struct ChatsController: RouteCollection {
     func boot(routes: any RoutesBuilder) throws {
         routes.get("v1", "chats") { req async throws -> Response in
@@ -14,7 +14,7 @@ struct ChatsController: RouteCollection {
                 await chats.current(now: req.now).map {
                     Chats.summaries($0, ownerName: req.relay.household.ownerName, now: req.now)
                 } ?? []
-            return try .json(ChatsResponse(status: status, threads: threads))
+            return try .json(ChatsResponse(status: status, threads: threads, sources: await chats.statuses(now: req.now)))
         }
 
         // Messages' ids ("iMessage;-;+15550100001") ride in the query, not the path.

@@ -2,7 +2,8 @@ import HearthCore
 import HearthKit
 import SwiftUI
 
-/// Recent text conversations, read only, from the Mac's Messages.
+/// Recent conversations, read only: texts from the Mac's Messages, and WhatsApp and
+/// Messenger chats from the Mac's bridges.
 struct TextsView: View {
     @Environment(AppModel.self) private var app
 
@@ -11,7 +12,7 @@ struct TextsView: View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Texts").font(.hTitle).displayTracking().foregroundStyle(Theme.ink).accessibilityAddTraits(.isHeader)
-                Text(chats.statusLine).font(.hMeta).foregroundStyle(Theme.muted)
+                Text(chats.overview).font(.hMeta).foregroundStyle(Theme.muted)
             }
             .padding(.horizontal, 4)
             if let problem = chats.problem { Notice(text: problem) }
@@ -52,7 +53,7 @@ private struct TextRow: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).font(.custom(Typeface.semibold, size: 15, relativeTo: .body)).foregroundStyle(Theme.ink).lineLimit(1)
                     Spacer()
-                    Text(chats.when(summary.last.date)).font(.custom(Typeface.regular, size: 12, relativeTo: .caption))
+                    Text(chats.meta(summary)).font(.custom(Typeface.regular, size: 12, relativeTo: .caption))
                         .foregroundStyle(Theme.muted)
                 }
                 Text(chats.preview(summary)).font(.hMeta).foregroundStyle(Theme.muted).lineLimit(2)
@@ -67,8 +68,8 @@ private struct TextRow: View {
     }
 }
 
-/// One conversation's latest texts, and what Hearth can do with them: open it
-/// in Messages, read it into Capture, or set a question aside.
+/// One conversation's latest messages, and what Hearth can do with them: open it in
+/// Messages, WhatsApp or Messenger, read it into Capture, or set a question aside.
 struct TextThreadView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
@@ -92,14 +93,14 @@ struct TextThreadView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(chats.title(thread)).font(.hTitle).displayTracking().foregroundStyle(Theme.ink)
                                 .accessibilityAddTraits(.isHeader)
-                            Text("\(thread.service) · read only. Hearth never sends a text.").font(.hMeta).foregroundStyle(Theme.muted)
+                            Text(Self.readOnly(thread)).font(.hMeta).foregroundStyle(Theme.muted)
                         }
                         .padding(.horizontal, 4)
                     }
                     if let problem { Notice(text: problem) }
                     if loaded == nil, problem == nil { ProgressView().tint(Theme.muted).frame(maxWidth: .infinity).padding(.top, 24) }
                     ForEach(loaded?.messages ?? []) { message in
-                        Bubble(message: message, group: loaded?.thread.isGroup ?? false)
+                        Bubble(message: message, thread: loaded?.thread)
                     }
                     Color.clear.frame(height: 1).id("end")
                 }
@@ -116,6 +117,10 @@ struct TextThreadView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .sheet(isPresented: $capturing) { CaptureView() }
+    }
+
+    static func readOnly(_ thread: ChatThread) -> String {
+        "\(thread.service) · read only. Hearth never sends \(thread.source == ChatSource.iMessage ? "a text" : "a message")."
     }
 
     func load() async {
@@ -141,8 +146,8 @@ struct TextThreadView: View {
                 }
                 .buttonStyle(.pill(.primary, height: 44))
                 .disabled(thread == nil)
-                if let thread, let url = chats.messagesURL(thread) {
-                    Button("Open in Messages") { openURL(url) }.buttonStyle(.pill(.secondary, height: 44))
+                if let thread, let link = chats.openLink(thread) {
+                    Button(link.title) { openURL(link.url) }.buttonStyle(.pill(.secondary, height: 44))
                 }
             }
             if waiting, let summary {
@@ -159,13 +164,14 @@ struct TextThreadView: View {
 private struct Bubble: View {
     @Environment(AppModel.self) private var app
     let message: ChatMessage
-    let group: Bool
+    let thread: ChatThread?
 
     var body: some View {
         let chats = app.chats
+        let who = message.fromMe ? "You" : chats.name(message.sender, in: thread)
         VStack(alignment: message.fromMe ? .trailing : .leading, spacing: 3) {
-            if group, !message.fromMe {
-                Text(chats.name(message.sender)).font(.custom(Typeface.semibold, size: 12, relativeTo: .caption))
+            if thread?.isGroup == true, !message.fromMe {
+                Text(chats.name(message.sender, in: thread)).font(.custom(Typeface.semibold, size: 12, relativeTo: .caption))
                     .foregroundStyle(Theme.muted).padding(.horizontal, 6)
             }
             VStack(alignment: .leading, spacing: 4) {
@@ -191,6 +197,6 @@ private struct Bubble: View {
         }
         .frame(maxWidth: .infinity, alignment: message.fromMe ? .trailing : .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(message.fromMe ? "You" : chats.name(message.sender)), \(chats.when(message.date)): \(message.text)")
+        .accessibilityLabel("\(who), \(chats.when(message.date)): \(message.text)")
     }
 }

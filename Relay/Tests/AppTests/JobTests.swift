@@ -106,6 +106,22 @@ struct DependencyGraphTests {
         }
     }
 
+    /// The bridges job reads the Mac's homeserver: it never sends to a room, joins one, or
+    /// marks one read.
+    @Test func theRelayOnlyReadsTheBridges() throws {
+        let files = [
+            Self.relayRoot.appendingPathComponent("Sources/Jobs/BridgedChatsJob.swift"),
+            Self.relayRoot.deletingLastPathComponent().appendingPathComponent("Packages/HearthKit/Sources/HearthKit")
+                .appendingPathComponent("Chats/BridgedChats.swift"),
+        ]
+        for file in files {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            for word in ["/send/", "/join", "/invite", "/leave", "/receipt", "read_markers", #"method: "PUT""#, #"method: "POST""#] {
+                #expect(!text.contains(word), "\(file.lastPathComponent) mentions \(word)")
+            }
+        }
+    }
+
     @Test func jobSourcesNeverNameAWrite() throws {
         let folder = Self.relayRoot.appendingPathComponent("Sources/Jobs")
         let files = try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasSuffix(".swift") }

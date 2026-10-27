@@ -27,6 +27,7 @@ struct HealthController: RouteCollection {
             full.claude = services.claude != nil
             full.push = services.apns != nil
             full.chats = await services.chats.status(now: req.now)
+            full.chatSources = await services.chats.statuses(now: req.now)
             return try .json(full)
         }
     }

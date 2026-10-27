@@ -58,6 +58,34 @@ struct ChatsModelTests {
         #expect(nobody.text.hasPrefix("No contact with a phone number"))
     }
 
+    @Test func bridgedChatsGoByTheirNetworksNamesAndOpenThere() async throws {
+        let app = await loaded()
+        let chats = app.chats
+        let dana = ChatThread(
+            id: "!dana", source: ChatSource.whatsApp, handles: ["+15550100009"], service: "WhatsApp",
+            names: ["+15550100009": "Dana Okafor"])
+        #expect(chats.title(dana) == "Dana Okafor")
+        #expect(chats.openLink(dana)?.title == "Open in WhatsApp")
+        #expect(chats.openLink(dana)?.url.absoluteString == "https://wa.me/15550100009")
+        let ana = ChatThread(
+            id: "!ana", source: ChatSource.messenger, handles: ["facebook:100002"], service: "Messenger",
+            names: ["facebook:100002": "Ana Ruiz"])
+        #expect(chats.openLink(ana)?.url.absoluteString == "https://m.me/100002")
+        let hidden = ChatThread(id: "!lid", source: ChatSource.whatsApp, handles: ["whatsapp:lid-42"], service: "WhatsApp")
+        #expect(chats.openLink(hidden) == nil)
+        #expect(chats.title(hidden) == "Someone on WhatsApp")
+        let last = ChatMessage(
+            id: "a1", threadId: "!ana", fromMe: false, sender: "facebook:100002", date: Fixtures.now.addingTimeInterval(-2 * 3600),
+            text: "Hi")
+        #expect(chats.meta(ChatSummary(thread: ana, last: last, unanswered: [], waiting: false)) == "Messenger · 2h ago")
+        let signedOut = ChatSourceStatus(
+            state: .needsAccess, message: "WhatsApp signed the bridge out. On the Mac: deploy/bridges/login.sh whatsapp",
+            source: ChatSource.whatsApp)
+        #expect(chats.bridgeLine(signedOut).hasSuffix("login.sh whatsapp"))
+        // Fixtures have no bridges: Messages alone, as before.
+        #expect(chats.bridges.isEmpty)
+    }
+
     @Test func aTextGoesToCapture() async throws {
         let app = await loaded()
         let mom = try #require(app.chats.waiting.first)

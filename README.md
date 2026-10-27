@@ -29,7 +29,7 @@ fixtures are fictional, and keys, tokens and real names stay on the devices.
 | `Packages/HearthKit` | Shared Swift (Linux-safe): model, agenda merge, mail rules, policies, relay API, Claude client |
 | `Relay` | The Mac relay: Vapor + SQLite, gmailkit bridge, jobs, approved-action executor |
 | `iOS` | The app (XcodeGen `project.yml`), `HearthCore`, StandBy widgets, share extension |
-| `deploy` | launchd daemons, tunnel hostname, smoke test |
+| `deploy` | launchd daemons, tunnel hostname, smoke test; `deploy/bridges`, the optional WhatsApp and Messenger bridges |
 | `docs` | Architecture, deploy notes, design map |
 
 ## Building

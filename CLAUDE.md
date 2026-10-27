@@ -20,8 +20,12 @@ summarizes it.
   (app logic, macOS-testable), `App` (SwiftUI), `Widgets` (StandBy widgets),
   `Share` (share extension), tests.
 - `deploy/`: the relay's launchd kit (`pair.sh` shows a QR code that pairs a
-  phone). `docs/`: architecture, deploy. `Tools/Eval`: `make eval`, the live
-  prompt checks (macOS only, never in CI, costs cents).
+  phone). `deploy/bridges/`: the optional WhatsApp and Messenger bridges and
+  their Synapse, pinned in `versions.env`. The deploy scripts run on the Mac's
+  `/bin/bash` 3.2 and BSD tools: no associative arrays, no `sed -i` without a
+  suffix argument, no GNU-only flags. `docs/`: architecture, deploy.
+  `Tools/Eval`: `make eval`, the live prompt checks (macOS only, never in CI,
+  costs cents).
 
 ## Rules that matter
 
@@ -35,10 +39,13 @@ summarizes it.
 - **Surprise guard and busy-only.** The partner's events leave the relay
   busy-only; surprise plans go only to the owner's primary account, marked
   private, and widgets show them as "Private".
-- **Texts are read only.** Only `hearth-messages` opens the Messages database
-  (`mode=ro`), and only it gets Full Disk Access; the relay never imports
-  `ChatReader` (`DependencyGraphTests`). Nothing sends a text. The relay's own
-  Claude never sees texts: only Ask, on the phone, when the owner asks.
+- **Texts and chats are read only.** Only `hearth-messages` opens the Messages
+  database (`mode=ro`), and only it gets Full Disk Access; the relay never imports
+  `ChatReader` (`DependencyGraphTests`). WhatsApp and Messenger come from the
+  Mac's bridges, which the relay's `BridgedChatsJob` only reads (`/sync`, the
+  bridges' `whoami`); never add a send, join, receipt or read marker there.
+  Nothing sends a message. The relay's own Claude never sees texts or chats:
+  only Ask, on the phone, when the owner asks.
 - **Public repo.** No real names, emails, church or job details, tokens or keys
   in code, fixtures, tests or commits. Fixtures use the fictional Rivera
   household (Sam and Robin, Maple Grove). Real household details live in
