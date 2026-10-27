@@ -62,6 +62,20 @@ iPhone ──https──▶ Cloudflare ──tunnel──▶ cloudflared ──�
    deploy/run.sh brief
    ```
 
+9. **Optional: texts (iMessage and SMS).** Messages must be signed in on this
+   Mac (and Text Message Forwarding on for SMS). As yourself, no sudo:
+   ```bash
+   deploy/install-messages.sh
+   ```
+   It builds `hearth-messages`, signs it with your Developer ID (the first time,
+   macOS may ask to let codesign use the key: Always Allow), and runs it every
+   two minutes as a LaunchAgent. Then grant it Full Disk Access once: System
+   Settings › Privacy & Security › Full Disk Access › +, press ⌘⇧G, enter
+   `~/HearthRelay/bin/hearth-messages`, and switch it on. Within two minutes
+   Sources shows "Reading". It only reads; the export stays in
+   `~/HearthRelay/data` and isn't backed up. Rerun the script after changes to
+   `Relay/Sources/ChatReader` or `MessagesExport`; `--remove` takes it out.
+
 ## Every update
 
 ```bash

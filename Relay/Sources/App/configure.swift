@@ -61,7 +61,8 @@ public func configure(
         refresher: CalendarRefresher(),
         claude: claude,
         apns: config.loadAPNs().flatMap { try? APNsClient(config: $0, client: app.client) },
-        http: http ?? VaporHTTPTransport(client: app.client)
+        http: http ?? VaporHTTPTransport(client: app.client),
+        chats: ChatStore(directory: config.chatsDirectory)
     )
 
     app.failedAuth = FailedAuthLimiter()
@@ -114,4 +115,5 @@ func routes(_ app: Application) throws {
     try keyed.register(collection: ToolsController())
     try keyed.register(collection: SignalsController())
     try keyed.register(collection: FeedsController())
+    try keyed.register(collection: ChatsController())
 }

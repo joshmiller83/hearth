@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- hearth-messages, every two minutes, as the logged-in owner (a LaunchAgent,
+     so no sudo). It reads the Messages database read-only and leaves an export
+     beside the relay's database. It needs Full Disk Access, granted once to
+     __BIN__ in System Settings. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__BIN__</string>
+    <string>--out</string>
+    <string>__DATA_DIR__/data</string>
+    <string>--days</string>
+    <string>60</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__DATA_DIR__</string>
+
+  <key>StartInterval</key>
+  <integer>120</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__DATA_DIR__/logs/messages.log</string>
+  <key>StandardErrorPath</key>
+  <string>__DATA_DIR__/logs/messages.log</string>
+</dict>
+</plist>

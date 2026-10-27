@@ -140,6 +140,15 @@ struct TodayView: View {
                 switch item.kind {
                 case .invite:
                     LinkRow(symbol: "calendar", tint: .ice, title: item.title, detail: item.detail) { tab = .plans }
+                case .text:
+                    let summary = app.chats.waiting.first { $0.waitingId == item.id }
+                    LinkRow(symbol: "message", tint: .ember, title: item.title, detail: item.detail) {
+                        if let summary { path.append(.texts(summary.thread.id)) }
+                    }
+                    .contextMenu {
+                        if let summary { Button("Not for me", systemImage: "minus.circle") { app.chats.leaveOut(summary) } }
+                    }
+                    .accessibilityAction(named: "Not for me") { if let summary { app.chats.leaveOut(summary) } }
                 case .reply:
                     LinkRow(symbol: "arrowshape.turn.up.left", tint: .ember, title: item.title, detail: item.detail) { tab = .inbox }
                         .contextMenu {

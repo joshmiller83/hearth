@@ -26,6 +26,7 @@ struct HealthController: RouteCollection {
             full.jobs = await services.jobs.statuses(req.application.jobContext())
             full.claude = services.claude != nil
             full.push = services.apns != nil
+            full.chats = await services.chats.status(now: req.now)
             return try .json(full)
         }
     }
@@ -198,6 +199,12 @@ struct ToolsController: RouteCollection {
                 } catch let error as BridgeError {
                     throw Abort(.badGateway, reason: error.description)
                 }
+            case AskTool.chatsSearch:
+                let search = try req.decodeJSON(ChatSearchRequest.self)
+                guard let export = await req.relay.chats.current(now: req.now) else {
+                    throw Abort(.serviceUnavailable, reason: "Texts can't be read right now. See Messages in Sources.")
+                }
+                return try .json(Chats.search(export, search, now: req.now))
             default:
                 throw Abort(.notFound, reason: "Ask has no tool called \(name).")
             }

@@ -18,6 +18,7 @@ struct SourcesView: View {
             .padding(.horizontal, 4)
 
             GmailkitCard()
+            TextsCard()
             RelayCard()
             ClaudeCard()
             NotificationsCard()
@@ -136,6 +137,53 @@ private struct GmailkitCard: View {
             return "Last calendar sweep \(fmt.time(last)). " + keys
         }
         return keys
+    }
+}
+
+/// iMessage and SMS, read on the Mac by `hearth-messages`; how to set it up when it can't.
+private struct TextsCard: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        let chats = app.chats
+        let state = chats.status?.state ?? app.health?.chats?.state
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    LetterTile(letters: "TX", tint: .ice)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Messages").font(.hRowTitle).foregroundStyle(Theme.ink)
+                        Text("iMessage and SMS · read on the Mac, never sent").font(.hMeta).foregroundStyle(Theme.muted)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if let state, state != .notInstalled {
+                        StatusPill(text: state == .ok ? "Reading" : state == .needsAccess ? "Needs access" : "Stopped", good: state == .ok)
+                    }
+                }
+                Text(chats.statusLine).font(.hMeta).foregroundStyle(Theme.muted).lineSpacing(2)
+                if state == .needsAccess {
+                    Notice(
+                        symbol: "lock",
+                        text:
+                            "On the Mac: System Settings › Privacy & Security › Full Disk Access, click +, press ⌘⇧G, enter ~/HearthRelay/bin/hearth-messages, and switch it on.",
+                        tint: .ice)
+                }
+                if chats.available {
+                    NavigationLink {
+                        TextsView()
+                    } label: {
+                        HStack {
+                            Text("Recent texts").font(.custom(Typeface.semibold, size: 15, relativeTo: .body)).foregroundStyle(Theme.ember)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.muted)
+                        }
+                        .frame(minHeight: Theme.touch)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 }
 

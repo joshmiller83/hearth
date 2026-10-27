@@ -5,7 +5,7 @@ import HearthKit
 /// state: the screen rebuilds it whenever they change.
 public struct TodaySummary: Sendable, Equatable {
     public struct NeedsYou: Sendable, Equatable, Identifiable {
-        public enum Kind: Sendable, Equatable { case invite, reply, signal }
+        public enum Kind: Sendable, Equatable { case invite, text, reply, signal }
         public var id: String
         public var kind: Kind
         public var title: String
@@ -51,6 +51,15 @@ public struct TodaySummary: Sendable, Equatable {
             var detail = fmt.weekday(invite.start) + " " + fmt.time(invite.start, compact: true)
             if let other = agenda.conflicts(with: invite).first { detail += " · overlaps \(other.title)" }
             needs.append(NeedsYou(id: invite.id, kind: .invite, title: "RSVP: \(invite.title)", detail: detail))
+        }
+
+        // Texts asking something, before mail: people expect a text answered sooner.
+        for text in app.chats.waiting.prefix(3) {
+            let question = text.unanswered.last { $0.text.contains("?") } ?? text.last
+            needs.append(
+                NeedsYou(
+                    id: text.waitingId, kind: .text, title: "\(app.chats.title(text.thread)): \(question.text)",
+                    detail: "\(text.thread.service == "iMessage" ? "Text" : text.thread.service) · \(app.chats.when(question.date))"))
         }
 
         let mail = app.inbox.snapshot

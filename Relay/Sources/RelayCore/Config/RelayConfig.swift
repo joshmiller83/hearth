@@ -27,6 +27,8 @@ public struct RelayConfig: Sendable {
     public var apnsTeamId: String?
     public var apnsTopic = "com.joshmiller83.hearth"
     public var apnsSandbox = true
+    /// Where `hearth-messages` leaves its export; by default beside the database. Nil: no texts.
+    public var chatsDirectory: String?
     /// The git commit being served, from bin/VERSION.
     public var commit: String?
     /// Run the timed jobs (only `serve` does; commands and tests don't).
@@ -48,7 +50,11 @@ public struct RelayConfig: Sendable {
         }
         if let v = value("HEARTH_HOST") { c.host = v }
         if let v = value("HEARTH_PORT").flatMap(Int.init) { c.port = v }
-        if let v = value("HEARTH_DB") { c.database = v == ":memory:" ? .memory : .file(v) }
+        if let v = value("HEARTH_DB") {
+            c.database = v == ":memory:" ? .memory : .file(v)
+            if v != ":memory:" { c.chatsDirectory = Paths.parent(v) }
+        }
+        if let v = value("HEARTH_CHATS_DIR") { c.chatsDirectory = v }
         if let v = value("HEARTH_BACKUP_DIR") {
             c.backupDirectory = v
         } else if case .file(let path) = c.database {

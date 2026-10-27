@@ -14,6 +14,8 @@ enum AppTab: String, Hashable, CaseIterable {
 enum Destination: Hashable {
     case signals
     case sources
+    /// A text conversation, by its id.
+    case texts(String)
 }
 
 /// The five tabs from the design.
@@ -33,6 +35,7 @@ struct RootView: View {
                             switch destination {
                             case .signals: SignalsView(tab: $tab, path: $todayPath)
                             case .sources: SourcesView()
+                            case .texts(let id): TextThreadView(threadId: id)
                             }
                         }
                 }

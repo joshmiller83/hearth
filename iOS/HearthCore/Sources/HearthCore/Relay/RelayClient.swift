@@ -22,6 +22,11 @@ public protocol RelayAPI: Sendable {
     func removeFeed(id: String) async throws -> FeedsResponse
     /// A calendar feed read once, without adding it.
     func previewFeed(_ url: URL) async throws -> FeedPreview
+    /// Texts, as the Mac's Messages helper exported them (read only).
+    func chats() async throws -> ChatsResponse
+    func chatThread(id: String) async throws -> ChatThreadResponse
+    /// Ask's text search.
+    func searchChats(_ search: ChatSearchRequest) async throws -> ChatSearchResponse
 }
 
 public enum RelayError: Error, Equatable, Sendable, CustomStringConvertible {
@@ -56,6 +61,9 @@ public struct RelayClient: RelayAPI {
         var parts = URLComponents(url: credentials.url.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty {
             parts.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
+            // URLComponents leaves "+" and ";" as they are; the relay would read "+" as a space.
+            parts.percentEncodedQuery = parts.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+                .replacingOccurrences(of: ";", with: "%3B")
         }
         return parts.url!
     }
@@ -163,5 +171,19 @@ public struct RelayClient: RelayAPI {
         try await call(
             "POST", url(RelayPath.tools + "/" + AskTool.gmailSearch), body: try HearthJSON.encode(search), timeout: 60,
             as: GmailSearchResponse.self)
+    }
+
+    public func chats() async throws -> ChatsResponse {
+        try await call("GET", url(RelayPath.chats), as: ChatsResponse.self)
+    }
+
+    public func chatThread(id: String) async throws -> ChatThreadResponse {
+        try await call("GET", url(RelayPath.chatThread, query: ["id": id]), as: ChatThreadResponse.self)
+    }
+
+    public func searchChats(_ search: ChatSearchRequest) async throws -> ChatSearchResponse {
+        try await call(
+            "POST", url(RelayPath.tools + "/" + AskTool.chatsSearch), body: try HearthJSON.encode(search), timeout: 30,
+            as: ChatSearchResponse.self)
     }
 }

@@ -80,6 +80,22 @@ final class SmokeUITests: XCTestCase {
     }
 
     @MainActor
+    func testATextWaitingOnYouOpensAndCanBeSetAside() {
+        let app = launch()
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Carol Rivera: Are you all coming Sunday?'")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Bring the good serving dish'")).firstMatch
+                .waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Open in Messages"].exists)
+        app.buttons["Not for me"].tap()
+        XCTAssertFalse(app.buttons["Not for me"].waitForExistence(timeout: 1))
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertFalse(row.waitForExistence(timeout: 2))
+    }
+
+    @MainActor
     func testAReplyIsDraftedAndSent() {
         let app = launch()
         app.tabBars.buttons["Inbox"].tap()

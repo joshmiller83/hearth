@@ -88,7 +88,26 @@ public actor FixtureRelay: RelayAPI {
                     name: "calendar", lastRun: Fixtures.now.addingTimeInterval(-6 * 60),
                     lastSuccess: Fixtures.now.addingTimeInterval(-6 * 60))
             ],
-            claude: true, push: false)
+            claude: true, push: false, chats: Self.chatStatus)
+    }
+
+    static let chatStatus = ChatSourceStatus(
+        state: .ok, checkedAt: Fixtures.now.addingTimeInterval(-60), exportedAt: Fixtures.now.addingTimeInterval(-60), threads: 5,
+        messages: 9)
+
+    public func chats() async throws -> ChatsResponse {
+        ChatsResponse(status: Self.chatStatus, threads: Chats.summaries(Fixtures.chats, ownerName: "Sam", now: Fixtures.now))
+    }
+
+    public func chatThread(id: String) async throws -> ChatThreadResponse {
+        guard let thread = Chats.thread(id, in: Fixtures.chats) else {
+            throw RelayError.http(status: 404, reason: "There's no such conversation.")
+        }
+        return thread
+    }
+
+    public func searchChats(_ search: ChatSearchRequest) async throws -> ChatSearchResponse {
+        Chats.search(Fixtures.chats, search, now: Fixtures.now)
     }
 
     public func events(from: Date, to: Date, refresh: Bool) async throws -> EventsResponse {

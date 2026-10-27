@@ -13,7 +13,9 @@ summarizes it.
   `HearthKitTestSupport` holds the fictional fixtures.
 - `Relay/`: Vapor 4 + Fluent/SQLite. Targets: `RelayCore` (config, gmailkit
   bridge, store), `Jobs` (timed work, read-only Google), `Executor` (approved
-  writes), `App` (routes, wiring), `Run`.
+  writes), `App` (routes, wiring), `Run`. `ChatReader` and `MessagesExport`
+  build `hearth-messages`, the small LaunchAgent that reads the Mac's Messages
+  database and leaves an export the relay serves.
 - `iOS/`: `project.yml` (XcodeGen; the .xcodeproj isn't committed), `HearthCore`
   (app logic, macOS-testable), `App` (SwiftUI), `Widgets` (StandBy widgets),
   `Share` (share extension), tests.
@@ -33,6 +35,10 @@ summarizes it.
 - **Surprise guard and busy-only.** The partner's events leave the relay
   busy-only; surprise plans go only to the owner's primary account, marked
   private, and widgets show them as "Private".
+- **Texts are read only.** Only `hearth-messages` opens the Messages database
+  (`mode=ro`), and only it gets Full Disk Access; the relay never imports
+  `ChatReader` (`DependencyGraphTests`). Nothing sends a text. The relay's own
+  Claude never sees texts: only Ask, on the phone, when the owner asks.
 - **Public repo.** No real names, emails, church or job details, tokens or keys
   in code, fixtures, tests or commits. Fixtures use the fictional Rivera
   household (Sam and Robin, Maple Grove). Real household details live in

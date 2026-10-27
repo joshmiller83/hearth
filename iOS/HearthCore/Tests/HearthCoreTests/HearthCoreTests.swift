@@ -22,6 +22,15 @@ struct RelayClientTests {
         #expect(request.timeout == 120)
     }
 
+    @Test func aConversationsIdSurvivesTheQuery() async throws {
+        let body = try HearthJSON.encode(ChatThreadResponse(thread: ChatThread(id: "x", handles: []), messages: []))
+        let transport = ScriptedTransport([.response(HTTPResponse(status: 200, body: body))])
+        _ = try await RelayClient(credentials: credentials, transport: transport).chatThread(id: "iMessage;-;+15550100001")
+        let request = try #require(transport.requests.first)
+        #expect(request.url.path == "/v1/chats/thread")
+        #expect(request.url.query == "id=iMessage%3B-%3B%2B15550100001")
+    }
+
     @Test func errorsBecomeSentences() async throws {
         let transport = ScriptedTransport([
             .response(HTTPResponse(status: 401, body: Data(#"{"error":true,"reason":"This needs the relay key from Sources."}"#.utf8))),
@@ -200,8 +209,11 @@ struct TodayTests {
         #expect(
             today.needsYou.map(\.title) == [
                 "RSVP: Leaders huddle", "Dana Whitfield: Next steps: Senior Engineer", "RSVP: Alumni mixer",
-                "Church Office: Trunk or Treat shifts", "Coach Martinez: Practice moved to Thursday",
+                "Church Office: Trunk or Treat shifts", "Carol Rivera: Are you all coming Sunday? I'm making the roast.",
+                "Coach Martinez: Practice moved to Thursday",
             ])
+        #expect(today.needsYou[4].kind == .text)
+        #expect(today.needsYou[4].detail == "Text · 1h ago")
         #expect(today.needsYou[0].detail == "Thu 7 PM · overlaps Bible study")
         #expect(today.needsYou[1].detail == "Needs you · work · 8:12 AM")
         #expect(

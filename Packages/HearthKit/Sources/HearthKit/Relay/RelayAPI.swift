@@ -14,6 +14,8 @@ public enum RelayPath {
     public static let tools = "/v1/tools"
     public static let signals = "/v1/signals"
     public static let feeds = "/v1/feeds"
+    public static let chats = "/v1/chats"
+    public static let chatThread = "/v1/chats/thread"
 }
 
 /// Every error body: `{"error": true, "reason": "<a sentence for the owner>"}`.
@@ -78,11 +80,13 @@ public struct HealthResponse: Codable, Hashable, Sendable {
     public var claude: Bool?
     /// True when the relay can send pushes (an APNs key is installed).
     public var push: Bool?
+    /// Whether the Mac's Messages helper can read texts.
+    public var chats: ChatSourceStatus?
 
     public init(
         status: String, version: String, commit: String? = nil, now: Date? = nil, gmailkit: BridgeStatus? = nil,
         accounts: [Account]? = nil, household: Household? = nil, jobs: [JobStatus]? = nil,
-        claude: Bool? = nil, push: Bool? = nil
+        claude: Bool? = nil, push: Bool? = nil, chats: ChatSourceStatus? = nil
     ) {
         self.status = status
         self.version = version
@@ -94,6 +98,7 @@ public struct HealthResponse: Codable, Hashable, Sendable {
         self.jobs = jobs
         self.claude = claude
         self.push = push
+        self.chats = chats
     }
 }
 

@@ -45,6 +45,16 @@ final class ScreenSnapshotTests: XCTestCase {
         assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
     }
 
+    func testTextThread() async throws {
+        let model = AppEnvironment.makeModel(mode: .fixtures)
+        await model.refreshAll()
+        let thread = try await model.chats.thread("mom")
+        let host = UIHostingController(
+            rootView: NavigationStack { TextThreadView(threadId: "mom", preloaded: thread) }.environment(model).preferredColorScheme(.dark))
+        host.overrideUserInterfaceStyle = .dark
+        assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
+    }
+
     func testAsk() async {
         let model = AppEnvironment.makeModel(mode: .fixtures)
         await model.refreshAll()
