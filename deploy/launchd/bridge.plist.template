@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The __NETWORK__ bridge (mautrix). System daemon: starts at boot, runs as
+     __SERVICE_USER__, listens only on 127.0.0.1 for Synapse, and is restarted by
+     launchd whenever it exits. PATH reaches Homebrew's ffmpeg, if it's installed,
+     for converting voice messages and GIFs. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+  <key>UserName</key>
+  <string>__SERVICE_USER__</string>
+  <key>GroupName</key>
+  <string>staff</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__BRIDGE_BIN__</string>
+    <string>-c</string>
+    <string>__BRIDGE_DIR__/config.yaml</string>
+    <string>-r</string>
+    <string>__BRIDGE_DIR__/registration.yaml</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__BRIDGE_DIR__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/__SERVICE_USER__</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>__DATA_DIR__/logs/bridge-__NETWORK__.log</string>
+  <key>StandardErrorPath</key>
+  <string>__DATA_DIR__/logs/bridge-__NETWORK__.log</string>
+</dict>
+</plist>

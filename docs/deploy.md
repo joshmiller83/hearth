@@ -92,6 +92,82 @@ It tests, builds, swaps the binary and restarts the relay. No sudo.
 - Keys: `deploy/run.sh list-keys`, `deploy/run.sh revoke-key --id <uuid>`.
 - Run a job now: `deploy/run.sh run-job calendar` (or `mail`, `brief`).
 
+## WhatsApp and Messenger (optional)
+
+WhatsApp and Facebook Messenger have no API for a personal account, so the Mac
+runs the open-source bridges Beeper maintains ([mautrix](https://github.com/mautrix)),
+which sign in as a linked device, and a private Matrix homeserver
+([Synapse](https://github.com/element-hq/synapse)) for them to talk to. Each chat
+becomes a room there. Every two minutes the relay reads the rooms (read only,
+like texts) and serves them with the texts, so they show up in Texts, Today's
+"Needs you" and Ask. Everything listens on 127.0.0.1 only, the homeserver
+doesn't federate, and the rooms aren't encrypted. iMessage and SMS come in
+through texts (step 9 above), not a bridge.
+
+```
+WhatsApp ◀──▶ mautrix-whatsapp 127.0.0.1:29318 ──┐
+Messenger ◀──▶ mautrix-meta    127.0.0.1:29319 ──┴──▶ Synapse 127.0.0.1:8008 ◀──/sync── relay ──▶ Texts
+```
+
+### First time
+
+1. **Tools**: `brew install go rust python@3.13`. Go builds the bridges; Synapse
+   has no macOS wheels, so pip compiles its Rust parts.
+2. **Settings**: in `deploy/config.env`, set `BRIDGES="whatsapp facebook"` (either
+   or both) and check `MATRIX_PYTHON`. `MATRIX_SERVER_NAME` can't change later.
+3. **Build** (no sudo; the first run compiles everything, so give it a while):
+   ```bash
+   deploy/bridges/build.sh
+   ```
+4. **Install the daemons**: Synapse, one per bridge, and a 3:35 AM backup. It
+   also restarts the relay so it reads them. Needs sudo.
+   ```bash
+   sudo deploy/bridges/install.sh
+   ```
+5. **Log in**, once per network (no sudo):
+   ```bash
+   deploy/bridges/login.sh whatsapp   # QR code, or a pairing code typed into Linked devices
+   deploy/bridges/login.sh facebook   # e.g. cookies copied from messenger.com
+   ```
+   The first run makes `@hearth:<server name>`, the account the bridges work for,
+   and saves its password and the relay's token in `~/HearthRelay/secrets`.
+6. **Check it**: within two minutes Sources on the phone shows each network as
+   "Reading" and Texts has its chats. `make status` lists each bridge and its login.
+
+### Keeping them current
+
+The bridges release monthly, mid-month ([mau.fi/blog](https://mau.fi/blog)), and
+are pinned in `deploy/bridges/versions.env` along with Synapse. Read the release
+post, bump the version in a commit, then on the Mac:
+
+```bash
+make bridges        # deploy/bridges/update.sh: build, restart, check
+```
+
+Don't skip a month: some releases migrate data the next one expects. Bump Synapse
+in the same pass, or sooner for a security release.
+
+### When a bridge stops
+
+- **Signed out.** WhatsApp unlinks devices after the phone has been off for 14
+  days, and Meta signs sessions out now and then. Sources shows "Sign in" with
+  the command, that network's chats leave Texts, and `make status` shows
+  `BAD_CREDENTIALS` or `LOGGED_OUT`. Run `deploy/bridges/login.sh <network>` again.
+- **Broken by the network.** Meta changes break mautrix-meta a few times a year.
+  The fix arrives upstream; bump the version and `make bridges`.
+- **Logs**: `~/HearthRelay/logs/matrix.log` and `bridge-<network>.log`, rotated
+  with the relay's. The relay logs each read as `bridges:` in `relay.log`.
+- **Backups**: `~/HearthRelay/backups/matrix-*.tar.gz`, nightly, newest 30, mode
+  600. They hold the databases, the homeserver's signing key and the bridges'
+  sessions, but not media.
+- **Looking at the rooms**: sign in to any Matrix client on the Mac at
+  `http://127.0.0.1:8008` as `@hearth`, with the password in
+  `~/HearthRelay/secrets/matrix-password`.
+- **Dropping a network**: take it out of `BRIDGES`, then rerun `build.sh` and
+  `sudo deploy/bridges/install.sh`. With `BRIDGES` empty, `install.sh` alone
+  removes Synapse and every bridge daemon, and the relay stops reading them. The
+  data stays in `~/HearthRelay/matrix`.
+
 ## Notes
 
 - **The home router caches DNS misses.** Check a new hostname with DNS over HTTPS
