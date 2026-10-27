@@ -346,10 +346,7 @@ private struct DoneCard: View {
                             .foregroundStyle(Theme.iceSoft)
                     }
                 }
-                Button("Undo") { Task { await app.ask.undo(turn.id) } }
-                    .font(.custom(Typeface.bold, size: 14, relativeTo: .subheadline))
-                    .foregroundStyle(Theme.iceSoft)
-                    .frame(minHeight: 36)
+                TextButton(title: "Undo") { Task { await app.ask.undo(turn.id) } }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

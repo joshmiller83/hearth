@@ -260,9 +260,7 @@ private struct IdeaCard: View {
                     .foregroundStyle(ran.failed ? Theme.emberSoft : Theme.iceSoft)
                 Spacer()
                 if !ran.failed, step.kind != .note, step.kind != .link {
-                    Button("Undo") { Task { await people.undo(step.id) } }
-                        .font(.custom(Typeface.bold, size: 14, relativeTo: .subheadline)).foregroundStyle(Theme.iceSoft)
-                        .frame(minHeight: 36)
+                    TextButton(title: "Undo") { Task { await people.undo(step.id) } }
                 }
             }
             if let note = ran.note {

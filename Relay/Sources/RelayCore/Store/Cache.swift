@@ -17,7 +17,9 @@ public struct Cache: Sendable {
     public static let forecastURL = "weather.forecastURL"
     /// Signals already pushed, so each goes out once.
     public static let signalsPushed = "signals.pushed"
+    /// The event feeds, and the events they hold.
     public static let feeds = "feeds"
+    public static let feedEvents = "feeds.events"
 
     public let db: any Database
 

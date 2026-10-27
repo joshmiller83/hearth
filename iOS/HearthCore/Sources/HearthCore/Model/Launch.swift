@@ -72,6 +72,8 @@ extension AppServices {
 /// A relay that answers from the fixtures.
 public actor FixtureRelay: RelayAPI {
     private var sent: [ApprovedAction] = []
+    private var feedList = FixtureTown.feeds
+    private var feedEvents = FixtureTown.events
 
     public init() {}
 
@@ -137,6 +139,34 @@ public actor FixtureRelay: RelayAPI {
     }
 
     public func registerDevice(_ registration: DeviceRegistration) async throws {}
+
+    public func feeds() async throws -> FeedsResponse {
+        FeedsResponse(
+            feeds: feedList, events: feedEvents.filter { event in feedList.first { $0.id == event.feedId }?.keeps(event) ?? false })
+    }
+
+    public func addFeed(_ new: NewFeed) async throws -> FeedsResponse {
+        var feed = Feed(
+            id: "f-new-\(feedList.count)", name: new.name, kind: new.kind, url: new.url, from: new.from, category: new.category,
+            skip: new.skip,
+            addedAt: Fixtures.now, checkedAt: Fixtures.now)
+        let events = FixtureTown.communityCenter(feedId: feed.id)
+        feed.total = events.count
+        feed.kept = events.filter(feed.keeps).count
+        feedList.append(feed)
+        feedEvents += events
+        return try await feeds()
+    }
+
+    public func removeFeed(id: String) async throws -> FeedsResponse {
+        feedList.removeAll { $0.id == id }
+        feedEvents.removeAll { $0.feedId == id }
+        return try await feeds()
+    }
+
+    public func previewFeed(_ address: URL) async throws -> FeedPreview {
+        FeedPreview(url: address, name: "Maple Grove Community Center", events: FixtureTown.communityCenter(feedId: "preview"))
+    }
 
     public func signals() async throws -> RelaySignals {
         let frost = Signal(
@@ -254,6 +284,7 @@ public struct FixtureClaude: HTTPTransport {
         let properties = body?["output_config"]?["format"]?["schema"]?["properties"]
         if properties?["ideas"] != nil { return Self.reply(Self.peopleIdeas.serialized()) }
         if properties?["plans"] != nil { return Self.reply(Self.partnerPlans.serialized()) }
+        if properties?["invitesAndBirthdays"] != nil { return Self.reply(Self.facebookRules.serialized()) }
         let content = body?["messages"]?[0]?["content"]?.arrayValue ?? []
         let text = content.compactMap { $0["text"]?.stringValue }.joined(separator: " ").lowercased()
         let hasImage = content.contains { $0["type"]?.stringValue == "image" }
@@ -308,11 +339,15 @@ public struct FixtureClaude: HTTPTransport {
 
     /// Ask's conversations, streamed: a birthday to plan, or a look at the week.
     public func streamLines(_ request: HTTPRequest) async throws -> HTTPLineStream {
-        let messages = request.body.flatMap { try? JSONValue.parse($0) }?["messages"]?.arrayValue ?? []
+        let body = request.body.flatMap { try? JSONValue.parse($0) }
+        let messages = body?["messages"]?.arrayValue ?? []
         let last = messages.last?["content"]?.arrayValue ?? []
         let question = last.compactMap { $0["type"]?.stringValue == "text" ? $0["text"]?.stringValue : nil }.joined().lowercased()
+        let tools = body?["tools"]?.arrayValue?.compactMap { $0["name"]?.stringValue } ?? []
         let reply: ScriptedTransport.Reply
-        if !question.isEmpty {
+        if tools.contains(FeedChatPrompt.proposeFeed) {
+            reply = question.isEmpty ? Self.feedProposal : Self.feedSearch
+        } else if !question.isEmpty {
             reply = question.contains("birthday") ? Self.birthdayLookup : Self.weekLookup
         } else {
             // Tool results: answer the round that asked for them.
@@ -384,6 +419,44 @@ public struct FixtureClaude: HTTPTransport {
                     "Two invites are waiting on you: the leaders huddle Thursday, which overlaps Bible study, and the alumni mixer Wednesday.\n\nEverything else this week can wait.",
             ]
         ], stopReason: "end_turn")
+
+    static let feedSearch = ScriptedTransport.streamed(
+        [
+            [
+                "type": "server_tool_use", "id": "srvtoolu_1", "name": "web_search",
+                "input": ["query": "Maple Grove community center events calendar"],
+            ],
+            [
+                "type": "web_search_tool_result", "tool_use_id": "srvtoolu_1",
+                "content": [["type": "web_search_result", "url": "https://communitycenter.example.org/events", "title": "Events"]],
+            ],
+            [
+                "type": "tool_use", "id": "toolu_preview", "name": "preview_feed",
+                "input": ["url": "https://calendar.example.org/community-center.ics"],
+            ],
+        ], stopReason: "tool_use")
+
+    static let feedProposal = ScriptedTransport.streamed(
+        [
+            [
+                "type": "text",
+                "text":
+                    "Found it. Their events page also publishes a calendar feed, so I’ll follow that rather than reading the page. 14 events are coming up; three fit your evenings and weekends: the fall craft fair, family movie night and the holiday cookie swap.\n\nThe other 11 are fitness classes and senior lunches. I’d leave those out.",
+            ],
+            [
+                "type": "tool_use", "id": "toolu_feed", "name": "propose_feed",
+                "input": [
+                    "name": "Community center", "kind": "ical", "url": "https://calendar.example.org/community-center.ics",
+                    "category": "family", "skip": ["yoga", "fitness", "senior lunch"], "kept": 3, "total": 14,
+                ],
+            ],
+        ], stopReason: "tool_use")
+
+    static let facebookRules: JSONValue = [
+        "reply":
+            "Got it. I’ll keep posts in Rivera Family and anything from Lou Rivera, plus invites and birthdays. The rest goes to Archive.",
+        "keep": ["Rivera Family", "Lou Rivera"], "invitesAndBirthdays": true,
+    ]
 
     static let peopleIdeas: JSONValue = [
         "ideas": [

@@ -70,6 +70,8 @@ public final class AppModel {
     public let ask: AskModel
     public let signals: SignalsModel
     public let people: PeopleModel
+    public let town: TownModel
+    public let facebook: FacebookModel
 
     public init(services: AppServices) {
         self.services = services
@@ -84,6 +86,8 @@ public final class AppModel {
         ask = AskModel(services: services)
         signals = SignalsModel(services: services)
         people = PeopleModel(services: services)
+        town = TownModel(services: services)
+        facebook = FacebookModel(services: services)
         plans.app = self
         sources.app = self
         capture.app = self
@@ -91,6 +95,8 @@ public final class AppModel {
         ask.app = self
         signals.app = self
         people.app = self
+        town.app = self
+        facebook.app = self
     }
 
     public var now: Date { services.clock.now }
@@ -150,6 +156,13 @@ public final class AppModel {
         Task { await uploadContext() }
     }
 
+    /// Facebook's rules go first, replacing any earlier ones; the relay sorts by them from the next sweep.
+    public func setFacebookRules(_ rules: [MailRule]) {
+        mailRules = rules + mailRules.filter { !$0.id.hasPrefix("facebook-") }
+        try? services.database.save(mailRules, key: StoreKey.mailRules, now: now)
+        Task { await uploadContext() }
+    }
+
     /// How much of what's in the inboxes now a rule catches (the preview beside its switch).
     public func mailRuleMatches(_ rule: MailRule) -> Int {
         guard let items = inbox.snapshot?.items else { return 0 }
@@ -170,6 +183,7 @@ public final class AppModel {
         await plans.refresh(force: force)
         await inbox.refresh(force: force)
         await signals.refresh()
+        await town.refresh()
         await refreshBrief()
         plans.publishWidgets()
     }

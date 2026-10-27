@@ -46,7 +46,7 @@ except `GET /v1/health`, which without the key answers only `{"status":"ok"}`.
 | `GET /v1/brief`, `POST /v1/devices` | M4 | The morning brief; the APNs token |
 | `POST /v1/tools/gmail_search` | M5 | Ask's mail search, read-only (any other tool name is a 404) |
 | `GET /v1/signals[?refresh=1]` | M6 | The weather the relay watches (NWS alerts, the night's low); the phone adds mail-derived signals |
-| `GET|POST /v1/feeds` | M8 | Event feeds |
+| `GET|POST /v1/feeds`, `DELETE /v1/feeds/:id`, `POST /v1/feeds/preview` | M8 | Event feeds and their kept events; a feed read once for the chat (public https only) |
 
 ## Claude
 

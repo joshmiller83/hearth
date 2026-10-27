@@ -2,6 +2,26 @@
 
 What each milestone left for later. Newest first.
 
+## M8 Around town, event feeds & Facebook
+
+- Calendar feeds are fetched every 6 hours. Pages and weekly emails without a
+  feed are read by the relay's Claude on Mondays, so they need the relay's
+  Anthropic key. Each feed keeps events by the skip words Claude suggested when
+  it was added.
+- The relay fetches only public https addresses: no names on your network, no
+  bare IP addresses, no ports other than 443.
+- The feed chat uses Claude's own web search and fetch, which cost a little on
+  top of the model.
+- Repeats: daily, weekly (by weekday) and monthly (same date) are expanded;
+  other repeats show their first date, and exceptions (EXDATE) aren't removed.
+- "For you two" means an evening after 5 or a weekend with nothing on anyone's
+  calendar then (your partner's as busy only). The featured card is this
+  weekend's first event that fits.
+- Facebook comes in through its notification emails, shares and screenshots,
+  and feeds. Your rules keep emails by phrases in their subjects and archive
+  the rest. Add to Family reads an email the way Capture reads a note, and
+  there's no Open in Facebook yet.
+
 ## M7 People & the partner planner
 
 - The inner circle lives on the phone. Add people by searching Contacts; remove

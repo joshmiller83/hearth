@@ -57,7 +57,7 @@ public func configure(
         household: household,
         google: access,
         executor: executor,
-        jobs: JobRunner(jobs: [CalendarCacheJob(), MailSweepJob(), BriefJob(), WeatherJob()]),
+        jobs: JobRunner(jobs: [CalendarCacheJob(), MailSweepJob(), BriefJob(), WeatherJob(), FeedsJob()]),
         refresher: CalendarRefresher(),
         claude: claude,
         apns: config.loadAPNs().flatMap { try? APNsClient(config: $0, client: app.client) },
@@ -113,4 +113,5 @@ func routes(_ app: Application) throws {
     try keyed.register(collection: BriefController())
     try keyed.register(collection: ToolsController())
     try keyed.register(collection: SignalsController())
+    try keyed.register(collection: FeedsController())
 }

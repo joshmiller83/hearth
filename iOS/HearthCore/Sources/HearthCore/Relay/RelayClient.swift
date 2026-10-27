@@ -17,6 +17,11 @@ public protocol RelayAPI: Sendable {
     func searchMail(_ search: GmailSearchRequest) async throws -> GmailSearchResponse
     /// What the relay watches for the phone (the weather).
     func signals() async throws -> RelaySignals
+    func feeds() async throws -> FeedsResponse
+    func addFeed(_ feed: NewFeed) async throws -> FeedsResponse
+    func removeFeed(id: String) async throws -> FeedsResponse
+    /// A calendar feed read once, without adding it.
+    func previewFeed(_ url: URL) async throws -> FeedPreview
 }
 
 public enum RelayError: Error, Equatable, Sendable, CustomStringConvertible {
@@ -134,6 +139,24 @@ public struct RelayClient: RelayAPI {
 
     public func signals() async throws -> RelaySignals {
         try await call("GET", url(RelayPath.signals), as: RelaySignals.self)
+    }
+
+    public func feeds() async throws -> FeedsResponse {
+        try await call("GET", url(RelayPath.feeds), as: FeedsResponse.self)
+    }
+
+    public func addFeed(_ feed: NewFeed) async throws -> FeedsResponse {
+        try await call("POST", url(RelayPath.feeds), body: try HearthJSON.encode(feed), timeout: 90, as: FeedsResponse.self)
+    }
+
+    public func removeFeed(id: String) async throws -> FeedsResponse {
+        try await call("DELETE", url(RelayPath.feeds + "/" + id), as: FeedsResponse.self)
+    }
+
+    public func previewFeed(_ address: URL) async throws -> FeedPreview {
+        try await call(
+            "POST", url(RelayPath.feeds + "/preview"), body: try HearthJSON.encode(FeedPreviewRequest(url: address)), timeout: 60,
+            as: FeedPreview.self)
     }
 
     public func searchMail(_ search: GmailSearchRequest) async throws -> GmailSearchResponse {

@@ -27,7 +27,7 @@ struct PlansView: View {
 
             switch mode {
             case .agenda: AgendaSection()
-            case .aroundTown: AroundTownPlaceholder()
+            case .aroundTown: AroundTownSection()
             }
         }
         .refreshable { await app.refreshAll(force: true) }

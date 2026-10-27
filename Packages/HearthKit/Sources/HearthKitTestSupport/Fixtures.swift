@@ -193,6 +193,18 @@ extension Fixtures {
                 "m41", "home", "Carol Rivera <carol.rivera@example.com>", "Thank you for the photos",
                 "I printed the one of the kids at the orchard. Call me some evening, after 7 is best.", "2026-09-28T19:05",
                 labels: []),
+            mail(
+                "fb1", "home", "Facebook <notification@facebookmail.com>", "New event in Rivera Family: Thanksgiving potluck",
+                "Sat, Nov 28 at Aunt Lou's. Bring a side.", "2026-10-26T06:00", labels: ["CATEGORY_SOCIAL"]),
+            mail(
+                "fb2", "home", "Facebook <notification@facebookmail.com>", "Pat Lee posted in Maple Grove Swap", "Free bikes, kids' sizes.",
+                "2026-10-25T20:00", labels: ["CATEGORY_SOCIAL"]),
+            mail(
+                "fb3", "home", "Facebook <notification@facebookmail.com>", "Lou Rivera commented on your photo", "So cute!",
+                "2026-10-24T09:00", labels: ["CATEGORY_SOCIAL"]),
+            mail(
+                "fb4", "home", "Facebook <notification@facebookmail.com>", "Your Marketplace listing has 3 new messages", "",
+                "2026-10-23T10:00", labels: ["CATEGORY_SOCIAL"]),
         ]
     }
 }

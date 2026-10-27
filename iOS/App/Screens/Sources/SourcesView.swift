@@ -23,11 +23,50 @@ struct SourcesView: View {
             NotificationsCard()
             CalendarsCard()
             HowTodayCard()
+            AroundTownCard()
             RulesCard()
             MailRulesCard()
         }
         .navigationTitle("Sources")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Event feeds and Facebook, which feed Around town and Signals.
+private struct AroundTownCard: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        ListCard(title: "Around town") {
+            row(
+                "dot.radiowaves.up.forward", "Event feeds",
+                "\(app.town.feeds.count) feed\(app.town.feeds.count == 1 ? "" : "s") · add one with Claude"
+            ) {
+                FeedsView()
+            }
+            row("person.2.wave.2", "Facebook", "Partial · 3 ways in") { FacebookView() }
+        }
+    }
+
+    func row(_ symbol: String, _ title: String, _ detail: String, destination: @escaping () -> some View) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: 12) {
+                IconTile(symbol: symbol, tint: .neutral)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.hRowTitle).foregroundStyle(Theme.ink)
+                    Text(detail).font(.hMeta).foregroundStyle(Theme.muted)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.muted)
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .top) { Hairline() }
     }
 }
 

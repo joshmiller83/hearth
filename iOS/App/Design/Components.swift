@@ -161,6 +161,24 @@ extension ButtonStyle where Self == PillButtonStyle {
     }
 }
 
+/// A small bold text button (Undo, Copy) with a full 44-point target.
+struct TextButton: View {
+    var title: String
+    var color: Color = Theme.iceSoft
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.custom(Typeface.bold, size: 14, relativeTo: .subheadline))
+                .foregroundStyle(color)
+                .frame(minWidth: Theme.touch, minHeight: Theme.touch, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// A 44-point round header button with an SF Symbol and an optional badge.
 struct RoundIconButton: View {
     var symbol: String

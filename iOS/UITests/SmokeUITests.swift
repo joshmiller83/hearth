@@ -138,6 +138,33 @@ final class SmokeUITests: XCTestCase {
     }
 
     @MainActor
+    func testAroundTownAndANewFeed() {
+        let app = launch()
+        app.tabBars.buttons["Plans"].tap()
+        app.buttons["Around town"].tap()
+        let add = app.buttons["Add Author talk at the public library to calendar"]
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        add.tap()
+        XCTAssertTrue(app.buttons["Remove Author talk at the public library from calendar"].waitForExistence(timeout: 5))
+
+        app.buttons["Event feeds: add one with Claude"].tap()
+        let field = app.descendants(matching: .any).matching(identifier: "Message Claude about event feeds").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("The community center has a calendar online somewhere. Can you add it?")
+        app.buttons["Send"].tap()
+        let keep = app.buttons["Add, keep those 3"]
+        XCTAssertTrue(keep.waitForExistence(timeout: 10))
+        wait(for: [expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: keep)], timeout: 5)
+        keep.tap()
+        let added = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label BEGINSWITH 'Added the community center feed, 3 of 14 kept'"))
+        XCTAssertTrue(added.firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Undo"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Add, keep those 3"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testSourcesShowsTheRelayAndRules() {
         let app = launch()
         app.buttons["Sources and rules"].tap()

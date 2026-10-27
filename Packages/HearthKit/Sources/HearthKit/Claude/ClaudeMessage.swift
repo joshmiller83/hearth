@@ -123,12 +123,18 @@ public struct ClaudeMessage: Sendable, Hashable {
 }
 
 /// A tool Claude may call: a name, what it's for, and its input's JSON schema.
+/// Or one of Anthropic's server tools (web search, web fetch), which Claude runs
+/// itself: those have a type instead, and never reach the toolbox.
 public struct ClaudeTool: Sendable, Hashable {
     public var name: String
     public var description: String
     public var inputSchema: JSONValue
     /// Guarantees schema-valid input (and needs `additionalProperties: false` on every object).
     public var strict: Bool
+    /// A server tool's versioned type, "web_search_20260209".
+    public var serverType: String?
+    /// For server tools: how many calls a request may make.
+    public var maxUses: Int?
 
     public init(name: String, description: String, inputSchema: JSONValue, strict: Bool = true) {
         self.name = name
@@ -137,7 +143,28 @@ public struct ClaudeTool: Sendable, Hashable {
         self.strict = strict
     }
 
+    /// Searching the web, run by Anthropic.
+    public static func webSearch(maxUses: Int = 5) -> ClaudeTool {
+        var tool = ClaudeTool(name: "web_search", description: "", inputSchema: .null, strict: false)
+        tool.serverType = "web_search_20260209"
+        tool.maxUses = maxUses
+        return tool
+    }
+
+    /// Reading a web page, run by Anthropic.
+    public static func webFetch(maxUses: Int = 5) -> ClaudeTool {
+        var tool = ClaudeTool(name: "web_fetch", description: "", inputSchema: .null, strict: false)
+        tool.serverType = "web_fetch_20260209"
+        tool.maxUses = maxUses
+        return tool
+    }
+
     func json(eagerInputStreaming: Bool) -> JSONValue {
+        if let serverType {
+            var object: JSONObject = ["type": .string(serverType), "name": .string(name)]
+            if let maxUses { object["max_uses"] = .int(maxUses) }
+            return .object(object)
+        }
         var object: JSONObject = [
             "name": .string(name),
             "description": .string(description),

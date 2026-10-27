@@ -65,6 +65,30 @@ final class ScreenSnapshotTests: XCTestCase {
         assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
     }
 
+    func testAroundTown() async {
+        let host = await screen(ScreenScroll { AroundTownSection() })
+        assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
+    }
+
+    func testFeedsChat() async {
+        let model = AppEnvironment.makeModel(mode: .fixtures)
+        await model.refreshAll()
+        await model.town.send("The community center has a calendar online somewhere. Can you add it?")
+        let host = UIHostingController(rootView: NavigationStack { FeedsView() }.environment(model).preferredColorScheme(.dark))
+        host.overrideUserInterfaceStyle = .dark
+        assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
+    }
+
+    func testFacebook() async {
+        let model = AppEnvironment.makeModel(mode: .fixtures)
+        await model.refreshAll()
+        await model.facebook.refresh()
+        await model.facebook.tell("Only the family group and anything from Lou. Skip Marketplace.")
+        let host = UIHostingController(rootView: NavigationStack { FacebookView() }.environment(model).preferredColorScheme(.dark))
+        host.overrideUserInterfaceStyle = .dark
+        assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
+    }
+
     func testSources() async {
         let host = await screen(SourcesView())
         assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))

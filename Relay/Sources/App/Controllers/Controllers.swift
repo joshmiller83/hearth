@@ -217,3 +217,60 @@ struct SignalsController: RouteCollection {
         }
     }
 }
+
+struct FeedsController: RouteCollection {
+    func boot(routes: any RoutesBuilder) throws {
+        // Every feed, and the kept events still ahead.
+        routes.get("v1", "feeds") { req async throws -> Response in
+            try .json(try await FeedStore(Cache(db: req.db)).response(now: req.now))
+        }
+
+        // A new feed, read at once.
+        routes.post("v1", "feeds") { req async throws -> Response in
+            let new = try req.decodeJSON(NewFeed.self)
+            let name = new.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { throw Abort(.badRequest, reason: "A feed needs a name.") }
+            var url: URL?
+            switch new.kind {
+            case .ical, .page:
+                guard let address = new.url, let safe = FeedAddress.safe(address) else {
+                    throw Abort(.badRequest, reason: "Only public https addresses can be feeds.")
+                }
+                url = safe
+            case .email:
+                guard let from = new.from, from.contains("@") || from.contains(".") else {
+                    throw Abort(.badRequest, reason: "An email feed needs the sender's address.")
+                }
+            }
+            let feed = Feed(
+                name: name, kind: new.kind, url: url, from: new.from, category: new.category, skip: new.skip, addedAt: req.now)
+            let store = FeedStore(Cache(db: req.db))
+            try await store.add(feed, now: req.now)
+            try await FeedsJob.check(feed.id, req.application.jobContext())
+            return try .json(try await store.response(now: req.now), status: .created)
+        }
+
+        routes.delete("v1", "feeds", ":id") { req async throws -> Response in
+            guard let id = req.parameters.get("id") else { throw Abort(.badRequest) }
+            let store = FeedStore(Cache(db: req.db))
+            guard try await store.feeds().contains(where: { $0.id == id }) else { throw Abort(.notFound, reason: "No such feed.") }
+            try await store.remove(id, now: req.now)
+            return try .json(try await store.response(now: req.now))
+        }
+
+        // A calendar feed read once, for the chat's preview. Nothing is saved.
+        routes.post("v1", "feeds", "preview") { req async throws -> Response in
+            let preview = try req.decodeJSON(FeedPreviewRequest.self)
+            guard let url = FeedAddress.safe(preview.url) else {
+                throw Abort(.badRequest, reason: "Only public https addresses can be read.")
+            }
+            do {
+                let read = try await FeedsJob.calendar(
+                    url, feedId: "preview", http: req.relay.http, zone: req.relay.household.zone, now: req.now)
+                return try .json(FeedPreview(url: url, name: read.name, events: read.events))
+            } catch let error as FeedError {
+                throw Abort(.unprocessableEntity, reason: "Couldn't read that feed: \(error.description).")
+            }
+        }
+    }
+}
