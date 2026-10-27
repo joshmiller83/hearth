@@ -41,9 +41,7 @@ struct InboxModelTests {
     @Test func keptMailIsNamedNotMoved() async {
         let app = await loaded()
         let inbox = app.inbox
-        #expect(
-            inbox.keptNote == "Kept in your inbox: 1 security, 1 github. Those never move without you."
-                || inbox.keptNote == "Kept in your inbox: 1 github, 1 security. Those never move without you.")
+        #expect(inbox.keptNote == "Kept in your inbox: 1 github, 1 security. Those never move without you.")
     }
 
     @Test func approvingAQueueSendsOneBatchPerAccount() async throws {

@@ -170,3 +170,30 @@ public struct PhoneContext: Codable, Hashable, Sendable {
         self.uploadedAt = uploadedAt
     }
 }
+
+/// `POST /v1/tools/gmail_search`: Ask's mail search, read-only.
+public struct GmailSearchRequest: Codable, Hashable, Sendable {
+    public static let maxLimit = 25
+
+    public var query: String
+    /// An account alias, or "all".
+    public var account: String
+    public var limit: Int
+
+    public init(query: String, account: String = "all", limit: Int = 10) {
+        self.query = query
+        self.account = account
+        self.limit = limit
+    }
+}
+
+public struct GmailSearchResponse: Codable, Hashable, Sendable {
+    /// Newest first, at most the request's limit across every account searched.
+    public var messages: [MailItem]
+    public var problems: [SourceProblem]
+
+    public init(messages: [MailItem], problems: [SourceProblem] = []) {
+        self.messages = messages
+        self.problems = problems
+    }
+}

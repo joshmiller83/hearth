@@ -72,7 +72,14 @@ final class FakeGoogle: GoogleReader, GoogleWriter, @unchecked Sendable {
     func search(query: String, account: String, limit: Int, metadataOnly: Bool) async throws -> [GmailkitMessageRow] {
         if let failReads { throw failReads }
         withLock { searches.append(query) }
-        guard query == "in:inbox" else { return [] }
+        guard query == "in:inbox" else {
+            // Ask's searches: any word of the query in the sender or subject.
+            let words = query.lowercased().split(separator: " ").map { $0.split(separator: ":").last.map(String.init) ?? "" }
+            return inbox.filter { item in
+                (account == "all" || account == item.account)
+                    && words.contains { !$0.isEmpty && (item.from + " " + item.subject).lowercased().contains($0) }
+            }.map { GmailkitMessageRow(item: $0, email: email($0.account)) }
+        }
         return inbox.map { GmailkitMessageRow(item: $0, email: email($0.account)) }
             + [GmailkitMessageRow(account: "kid.rivera@example.com", error: "[kid.rivera@example.com] invalid_grant")]
     }

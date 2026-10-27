@@ -47,7 +47,7 @@ struct RootView: View {
                 NavigationStack { PeoplePlaceholder() }
             }
             Tab("Ask", systemImage: "ellipsis.bubble", value: AppTab.ask) {
-                NavigationStack { AskPlaceholder() }
+                NavigationStack { AskView() }
             }
         }
         .sheet(isPresented: $showCapture) { CaptureView() }

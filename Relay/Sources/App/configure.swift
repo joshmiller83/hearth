@@ -108,4 +108,5 @@ func routes(_ app: Application) throws {
     try keyed.register(collection: ContextController())
     try keyed.register(collection: MailController())
     try keyed.register(collection: BriefController())
+    try keyed.register(collection: ToolsController())
 }

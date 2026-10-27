@@ -13,6 +13,8 @@ public protocol RelayAPI: Sendable {
     func thread(account: String, threadId: String) async throws -> ThreadResponse
     func brief() async throws -> Brief?
     func registerDevice(_ registration: DeviceRegistration) async throws
+    /// Ask's mail search (read-only).
+    func searchMail(_ search: GmailSearchRequest) async throws -> GmailSearchResponse
 }
 
 public enum RelayError: Error, Equatable, Sendable, CustomStringConvertible {
@@ -126,5 +128,11 @@ public struct RelayClient: RelayAPI {
 
     public func thread(account: String, threadId: String) async throws -> ThreadResponse {
         try await call("GET", url(RelayPath.mailThreads + "/" + account + "/" + threadId), timeout: 60, as: ThreadResponse.self)
+    }
+
+    public func searchMail(_ search: GmailSearchRequest) async throws -> GmailSearchResponse {
+        try await call(
+            "POST", url(RelayPath.tools + "/" + AskTool.gmailSearch), body: try HearthJSON.encode(search), timeout: 60,
+            as: GmailSearchResponse.self)
     }
 }

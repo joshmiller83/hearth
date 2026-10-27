@@ -47,6 +47,8 @@
 	<string>Hearth reads your iCloud calendars, like Family and Birthdays, to build one agenda with your Google calendars. It adds an event only after you approve it.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Hearth photographs flyers and your paper calendar so Claude can read them into events you approve.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>When you ask about someone, Ask Hearth looks them up in your contacts, like a birthday or the city they live in.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Hearth adds reminders you capture, like "call plumber tue am", after you approve them.</string>
 	<key>UIAppFonts</key>

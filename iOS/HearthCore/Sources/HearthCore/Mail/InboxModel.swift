@@ -110,7 +110,8 @@ public final class InboxModel {
     /// "Kept in your inbox: 33 security alerts, 2 GitHub reviews. Those never auto-archive."
     public var keptNote: String? {
         guard let kept = snapshot?.kept(account: account), !kept.isEmpty else { return nil }
-        let groups = Dictionary(grouping: kept, by: \.tag).sorted { $0.value.count > $1.value.count }
+        // Most first; ties by name, so the line doesn't reshuffle between redraws.
+        let groups = Dictionary(grouping: kept, by: \.tag).sorted { ($1.value.count, $0.key) < ($0.value.count, $1.key) }
         let parts = groups.map { tag, items in "\(items.count) \(tag.lowercased())" }
         return "Kept in your inbox: " + parts.joined(separator: ", ") + ". Those never move without you."
     }

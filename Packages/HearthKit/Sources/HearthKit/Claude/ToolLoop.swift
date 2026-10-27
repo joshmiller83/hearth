@@ -36,6 +36,10 @@ public enum ToolLoopEvent: Sendable, Equatable {
 /// The transcript is append-only. Each reply goes back exactly as it came
 /// (thinking blocks and all), each round of results is one new user message,
 /// and nothing earlier is ever edited, which is what preserved thinking requires.
+///
+/// A reply that calls only `terminal` tools ends the run once they've run: the
+/// transcript then ends on that reply, and the caller owes their results at the
+/// start of the next user message (Ask's proposals wait for the owner's tap).
 public struct ToolLoop: Sendable {
     public var client: ClaudeClient
     public var maxRounds: Int
@@ -45,7 +49,9 @@ public struct ToolLoop: Sendable {
         self.maxRounds = maxRounds
     }
 
-    public func run(_ base: ClaudeRequest, toolbox: any ClaudeToolbox) -> AsyncThrowingStream<ToolLoopEvent, any Error> {
+    public func run(
+        _ base: ClaudeRequest, toolbox: any ClaudeToolbox, terminal: Set<String> = []
+    ) -> AsyncThrowingStream<ToolLoopEvent, any Error> {
         let client = self.client
         let maxRounds = self.maxRounds
         return AsyncThrowingStream { continuation in
@@ -64,6 +70,16 @@ public struct ToolLoop: Sendable {
                         guard let reply else { throw ClaudeError.transport("No reply.") }
                         request.messages.append(reply.assistantMessage)
 
+                        let calls = reply.toolUses
+                        if reply.stopReason == .toolUse, !calls.isEmpty, calls.allSatisfy({ terminal.contains($0.name) }) {
+                            for call in calls {
+                                continuation.yield(.toolStarted(call))
+                                continuation.yield(.toolFinished(call, await toolbox.run(call)))
+                            }
+                            continuation.yield(.done(reply, transcript: request.messages))
+                            continuation.finish()
+                            return
+                        }
                         switch reply.stopReason {
                         case .toolUse where round < maxRounds:
                             var results: [ContentBlock] = []

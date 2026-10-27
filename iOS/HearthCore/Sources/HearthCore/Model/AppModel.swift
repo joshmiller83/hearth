@@ -8,6 +8,8 @@ public struct AppServices: Sendable {
     public var secrets: any SecretStore
     public var database: AppDatabase
     public var calendar: any AppleCalendar
+    /// Contacts, for Ask's people_get.
+    public var people: any PeopleDirectory
     public var clock: any HearthClock
     /// Builds the relay client once credentials exist.
     public var makeRelay: @Sendable (RelayCredentials) -> any RelayAPI
@@ -23,6 +25,7 @@ public struct AppServices: Sendable {
         secrets: any SecretStore,
         database: AppDatabase,
         calendar: any AppleCalendar,
+        people: any PeopleDirectory = NoPeople(),
         clock: any HearthClock = SystemClock(),
         makeRelay: @escaping @Sendable (RelayCredentials) -> any RelayAPI,
         makeClaude: @escaping @Sendable (String) -> ClaudeClient,
@@ -33,6 +36,7 @@ public struct AppServices: Sendable {
         self.secrets = secrets
         self.database = database
         self.calendar = calendar
+        self.people = people
         self.clock = clock
         self.makeRelay = makeRelay
         self.makeClaude = makeClaude
@@ -63,6 +67,7 @@ public final class AppModel {
     public let sources: SourcesModel
     public let capture: CaptureModel
     public let inbox: InboxModel
+    public let ask: AskModel
 
     public init(services: AppServices) {
         self.services = services
@@ -74,10 +79,12 @@ public final class AppModel {
         sources = SourcesModel(services: services)
         capture = CaptureModel(services: services, inbox: services.inbox)
         inbox = InboxModel(services: services)
+        ask = AskModel(services: services)
         plans.app = self
         sources.app = self
         capture.app = self
         inbox.app = self
+        ask.app = self
     }
 
     public var now: Date { services.clock.now }

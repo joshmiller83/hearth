@@ -2,6 +2,20 @@
 
 What each milestone left for later. Newest first.
 
+## M5 Ask Hearth
+
+- Ask needs the phone's Claude key (Sources). A question costs a few cents at
+  Opus's high effort; follow-ups resend the conversation, mostly from cache.
+- The conversation lives in memory and clears when Hearth quits.
+- Ask can propose reminders, private holds, Family events, replies (held 30
+  seconds so Undo can stop them), notes to copy, and https links. It can't
+  RSVP, archive, label or start new emails yet.
+- People come from Contacts: name, birthday, anniversary, city and email.
+  Contact notes aren't read, because that needs an entitlement Apple grants case
+  by case. "Mom" works when a card's Related Names says who that is.
+- The trace shows each tool and what it found; Claude's thinking isn't shown.
+- Dictation is the keyboard's own microphone.
+
 ## M4 Today, brief & push
 
 - The 6:30 brief needs the relay's own Claude key (`ANTHROPIC_KEY_FILE`). Until

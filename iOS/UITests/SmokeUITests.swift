@@ -88,6 +88,25 @@ final class SmokeUITests: XCTestCase {
     }
 
     @MainActor
+    func testAskPlansABirthdayAndUndoTakesItBack() {
+        let app = launch()
+        app.tabBars.buttons["Ask"].tap()
+        let field = app.descendants(matching: .any).matching(identifier: "Ask Hearth").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("Mom's birthday is next week. Handle it, but run it by me first.")
+        app.buttons["Send"].tap()
+        XCTAssertTrue(app.buttons["Do these 3"].waitForExistence(timeout: 10))
+        let trace = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'people_get'")).firstMatch
+        XCTAssertTrue(trace.exists)
+        app.buttons["Do these 3"].tap()
+        let done = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Done.'")).firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        app.buttons["Undo"].tap()
+        XCTAssertTrue(app.buttons["Do these 3"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testSourcesShowsTheRelayAndRules() {
         let app = launch()
         app.buttons["Sources and rules"].tap()

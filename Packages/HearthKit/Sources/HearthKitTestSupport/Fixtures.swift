@@ -170,3 +170,29 @@ extension Fixtures {
         ]
     }
 }
+
+extension Fixtures {
+    /// The owner's contacts, as Ask's people_get finds them.
+    public static let people: [PersonCard] = [
+        PersonCard(
+            name: "Carol Rivera", nickname: "Mom", relation: "mother", birthdayMonth: 11, birthdayDay: 3, birthdayYear: 1956,
+            city: "Springfield", emails: ["carol.rivera@example.com"], hasPhone: true, note: "Prefers cards by mail."),
+        PersonCard(
+            name: "Robin Rivera", relation: "partner", birthdayMonth: 3, birthdayDay: 14, anniversaryMonth: 6, anniversaryDay: 20,
+            city: "Maple Grove", emails: ["robin@example.com"], hasPhone: true),
+    ]
+
+    /// Older mail Ask finds by searching. It's out of the inbox, so triage never sees it.
+    public static var archived: [MailItem] {
+        [
+            mail(
+                "m40", "home", "Carol Rivera <carol.rivera@example.com>", "Garden's put to bed",
+                "The tulips are in. My old garden kneeler finally gave out, so I knelt on a feed sack like your grandmother did.",
+                "2026-10-12T16:40", labels: []),
+            mail(
+                "m41", "home", "Carol Rivera <carol.rivera@example.com>", "Thank you for the photos",
+                "I printed the one of the kids at the orchard. Call me some evening, after 7 is best.", "2026-09-28T19:05",
+                labels: []),
+        ]
+    }
+}

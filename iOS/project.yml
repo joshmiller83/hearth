@@ -56,6 +56,7 @@ targets:
         HearthKeychainGroup: $(AppIdentifierPrefix)$(BUNDLE_ID_PREFIX).hearth.shared
         NSCalendarsFullAccessUsageDescription: Hearth reads your iCloud calendars, like Family and Birthdays, to build one agenda with your Google calendars. It adds an event only after you approve it.
         NSRemindersFullAccessUsageDescription: Hearth adds reminders you capture, like "call plumber tue am", after you approve them.
+        NSContactsUsageDescription: When you ask about someone, Ask Hearth looks them up in your contacts, like a birthday or the city they live in.
         NSCameraUsageDescription: Hearth photographs flyers and your paper calendar so Claude can read them into events you approve.
         UIAppFonts:
           - Fonts/Figtree/Figtree-Regular.ttf

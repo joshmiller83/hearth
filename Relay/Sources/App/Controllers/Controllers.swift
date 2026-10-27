@@ -163,3 +163,44 @@ struct BriefController: RouteCollection {
         }
     }
 }
+
+/// Ask's read-only tools. Only the tools named here run; anything else (every
+/// write, every other gmailkit tool) is a 404.
+struct ToolsController: RouteCollection {
+    func boot(routes: any RoutesBuilder) throws {
+        routes.post("v1", "tools", ":name") { req async throws -> Response in
+            let name = req.parameters.get("name") ?? ""
+            switch name {
+            case AskTool.gmailSearch:
+                let search = try req.decodeJSON(GmailSearchRequest.self)
+                let query = search.query.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !query.isEmpty else { throw Abort(.badRequest, reason: "Search for something.") }
+                let reader = req.relay.google.reader
+                let aliases = await reader.aliases()
+                guard search.account == "all" || aliases.values.contains(search.account) else {
+                    throw Abort(.badRequest, reason: "There's no account called \(search.account).")
+                }
+                let limit = min(max(search.limit, 1), GmailSearchRequest.maxLimit)
+                do {
+                    let rows = try await reader.search(query: query, account: search.account, limit: limit, metadataOnly: false)
+                    var problems: [SourceProblem] = []
+                    var messages: [MailItem] = []
+                    for row in rows {
+                        let alias = aliases[row.account.lowercased()] ?? row.account
+                        if let error = row.error {
+                            problems.append(SourceProblem(source: alias, message: error))
+                        } else if let item = MailItem(row: row, alias: { aliases[$0.lowercased()] ?? $0 }) {
+                            messages.append(item)
+                        }
+                    }
+                    messages.sort { $0.date > $1.date }
+                    return try .json(GmailSearchResponse(messages: Array(messages.prefix(limit)), problems: problems))
+                } catch let error as BridgeError {
+                    throw Abort(.badGateway, reason: error.description)
+                }
+            default:
+                throw Abort(.notFound, reason: "Ask has no tool called \(name).")
+            }
+        }
+    }
+}

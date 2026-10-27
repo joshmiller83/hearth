@@ -39,16 +39,6 @@ struct PeoplePlaceholder: View {
     }
 }
 
-struct AskPlaceholder: View {
-    var body: some View {
-        ComingSoon(
-            title: "Ask Hearth", milestone: "M5", symbol: "ellipsis.bubble",
-            lines: [
-                "Ask across your mail and calendars. Claude checks its sources, shows its work, and proposes actions you approve."
-            ])
-    }
-}
-
 struct SignalsPlaceholder: View {
     var body: some View {
         ComingSoon(

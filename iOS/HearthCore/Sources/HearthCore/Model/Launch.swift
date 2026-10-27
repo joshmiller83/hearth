@@ -31,6 +31,7 @@ extension AppServices {
             secrets: KeychainSecretStore(accessGroup: keychainGroup),
             database: try AppDatabase.open(directory: directory),
             calendar: EventKitCalendar(),
+            people: ContactsDirectory(),
             makeRelay: { RelayClient(credentials: $0, transport: transport) },
             makeClaude: { ClaudeClient(apiKey: $0, transport: transport) },
             widgets: WidgetCenterPublisher(file: WidgetSnapshotFile(directory: directory)),
@@ -52,6 +53,7 @@ extension AppServices {
             secrets: MemorySecretStore([.relayURL: "https://relay.example", .relayKey: "hrk_fixture", .claudeKey: "sk-ant-fixture"]),
             database: try! AppDatabase.inMemory(),
             calendar: FixtureCalendar(),
+            people: FixturePeople(),
             clock: ManualClock(now),
             makeRelay: { _ in relay },
             makeClaude: { ClaudeClient(apiKey: $0, transport: FixtureClaude(), pause: { _ in }) },
@@ -90,7 +92,14 @@ public actor FixtureRelay: RelayAPI {
 
     public func submit(_ actions: [ApprovedAction]) async throws -> [ActionStatus] {
         sent.append(contentsOf: actions)
-        return actions.map { ActionStatus(id: $0.id, kind: $0.kind, state: .done, updatedAt: Fixtures.now) }
+        return actions.map { action in
+            if let notBefore = action.notBefore, notBefore > action.approvedAt {
+                return ActionStatus(id: action.id, kind: action.kind, state: .pending, notBefore: notBefore, updatedAt: Fixtures.now)
+            }
+            var result: JSONValue?
+            if case .createHold = action.kind { result = ["event_id": .string("hold-" + action.id.prefix(8)), "calendar_id": "primary"] }
+            return ActionStatus(id: action.id, kind: action.kind, state: .done, updatedAt: Fixtures.now, result: result)
+        }
     }
 
     public func statuses(ids: [String]) async throws -> [ActionStatus] {
@@ -123,6 +132,16 @@ public actor FixtureRelay: RelayAPI {
     }
 
     public func registerDevice(_ registration: DeviceRegistration) async throws {}
+
+    public func searchMail(_ search: GmailSearchRequest) async throws -> GmailSearchResponse {
+        let words = search.query.lowercased().split(separator: " ").compactMap { $0.split(separator: ":").last.map(String.init) }
+            .filter { !$0.hasSuffix("d") || Int($0.dropLast()) == nil }
+        let hits = (Fixtures.inbox + Fixtures.archived).filter { item in
+            (search.account == "all" || item.account == search.account)
+                && words.contains { (item.from + " " + item.subject + " " + item.snippet).lowercased().contains($0) }
+        }
+        return GmailSearchResponse(messages: Array(hits.sorted { $0.date > $1.date }.prefix(search.limit)))
+    }
 
     public func thread(account: String, threadId: String) async throws -> ThreadResponse {
         let item = Fixtures.inbox.first { $0.threadId == threadId }
@@ -270,7 +289,92 @@ public struct FixtureClaude: HTTPTransport {
         return HTTPResponse(status: 200, body: message.data)
     }
 
+    /// Ask's conversations, streamed: a birthday to plan, or a look at the week.
     public func streamLines(_ request: HTTPRequest) async throws -> HTTPLineStream {
-        throw TransportError("The fixture Claude doesn't stream yet.")
+        let messages = request.body.flatMap { try? JSONValue.parse($0) }?["messages"]?.arrayValue ?? []
+        let last = messages.last?["content"]?.arrayValue ?? []
+        let question = last.compactMap { $0["type"]?.stringValue == "text" ? $0["text"]?.stringValue : nil }.joined().lowercased()
+        let reply: ScriptedTransport.Reply
+        if !question.isEmpty {
+            reply = question.contains("birthday") ? Self.birthdayLookup : Self.weekLookup
+        } else {
+            // Tool results: answer the round that asked for them.
+            let asked = messages.dropLast().last?["content"]?.arrayValue ?? []
+            let names = asked.compactMap { $0["type"]?.stringValue == "tool_use" ? $0["name"]?.stringValue : nil }
+            reply = names.contains(AskTool.peopleGet) ? Self.birthdayPlan : Self.weekAnswer
+        }
+        guard case .stream(let status, let lines) = reply else { throw TransportError("No fixture reply.") }
+        return HTTPLineStream(
+            status: status,
+            lines: AsyncThrowingStream { continuation in
+                for line in lines { continuation.yield(line) }
+                continuation.finish()
+            })
+    }
+
+    static let birthdayLookup = ScriptedTransport.streamed(
+        [
+            ["type": "thinking", "thinking": "Her birthday, her recent mail, and the days around it.", "signature": "fixture"],
+            ["type": "tool_use", "id": "toolu_people", "name": "people_get", "input": ["name": "Mom"]],
+            [
+                "type": "tool_use", "id": "toolu_search", "name": "gmail_search",
+                "input": ["query": "from:carol newer_than:60d", "account": "all", "limit": 10],
+            ],
+            ["type": "tool_use", "id": "toolu_agenda", "name": "agenda", "input": ["from": "2026-11-01", "to": "2026-11-04"]],
+        ], stopReason: "tool_use")
+
+    static let birthdayPlan = ScriptedTransport.streamed(
+        [
+            [
+                "type": "text",
+                "text": .string(
+                    "Here’s a plan. Her birthday is Tuesday, Nov 3, and a card has to go in the mail by Thursday to get there in time.\n\n"
+                        + "In her Oct 12 email she said her old garden kneeler finally gave out, so that’s an easy gift. "
+                        + "Tuesday you’re free after 7, and she’s said evenings after 7 are best for a call."),
+            ],
+            [
+                "type": "tool_use", "id": "toolu_propose", "name": "propose_actions",
+                "input": [
+                    "actions": [
+                        step(
+                            "note", "Draft the birthday card note", "From her last few emails. You copy it by hand.", "card note drafted",
+                            text:
+                                "Happy birthday, Mom! I hope the tulips come up beautifully, and that the new kneeler saves your knees. Love you."
+                        ),
+                        step(
+                            "remind", "Remind me Thursday, 8 AM: mail the card", "Lands on your phone, not a shared calendar",
+                            "Thursday reminder set", title: "Mail Mom's birthday card", start: "2026-10-29T08:00"),
+                        step(
+                            "hold", "Hold Tue, Nov 3, 7:30 PM: call Mom", "Private hold on work · nothing sent to anyone",
+                            "Tuesday call held", title: "Call Mom", start: "2026-11-03T19:30", end: "2026-11-03T20:00"),
+                        step(
+                            "link", "Find a garden kneeler, delivered by Nov 3", "Opens a store search. You check out.",
+                            "store search ready", url: "https://shop.example/search?q=garden+kneeler"),
+                    ]
+                ],
+            ],
+        ], stopReason: "tool_use")
+
+    static let weekLookup = ScriptedTransport.streamed(
+        [["type": "tool_use", "id": "toolu_week", "name": "agenda", "input": ["from": "2026-10-26", "to": "2026-11-01"]]],
+        stopReason: "tool_use")
+
+    static let weekAnswer = ScriptedTransport.streamed(
+        [
+            [
+                "type": "text",
+                "text":
+                    "Two invites are waiting on you: the leaders huddle Thursday, which overlaps Bible study, and the alumni mixer Wednesday.\n\nEverything else this week can wait.",
+            ]
+        ], stopReason: "end_turn")
+
+    static func step(
+        _ kind: String, _ label: String, _ detail: String, _ done: String, title: String = "", start: String = "", end: String = "",
+        text: String = "", url: String = ""
+    ) -> JSONValue {
+        [
+            "kind": .string(kind), "label": .string(label), "detail": .string(detail), "done": .string(done), "title": .string(title),
+            "start": .string(start), "end": .string(end), "account": "", "message_id": "", "text": .string(text), "url": .string(url),
+        ]
     }
 }

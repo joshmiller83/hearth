@@ -33,6 +33,7 @@ enum Theme {
     static let ice = hex(0x8EC5E8)
     static let iceSoft = hex(0xA9D6F2)
     static let iceDeep = hex(0x172631)
+    static let iceInk = hex(0xDCEEFA)
     static let onIce = hex(0x0D1A22)
 
     // Stone: archive and delete queues.

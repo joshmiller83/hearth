@@ -32,6 +32,15 @@ final class ScreenSnapshotTests: XCTestCase {
         assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
     }
 
+    func testAsk() async {
+        let model = AppEnvironment.makeModel(mode: .fixtures)
+        await model.refreshAll()
+        await model.ask.ask("Mom's birthday is next week. Handle it, but run it by me first.")
+        let host = UIHostingController(rootView: NavigationStack { AskView() }.environment(model).preferredColorScheme(.dark))
+        host.overrideUserInterfaceStyle = .dark
+        assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
+    }
+
     func testSources() async {
         let host = await screen(SourcesView())
         assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
