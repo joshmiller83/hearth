@@ -28,7 +28,10 @@ public struct RelayConfig: Sendable {
     public var apnsTopic = "com.joshmiller83.hearth"
     public var apnsSandbox = true
     /// Where `hearth-messages` leaves its export; by default beside the database. Nil: no texts.
+    /// The bridges job keeps what it reads there too.
     public var chatsDirectory: String?
+    /// The Mac's Matrix homeserver and its bridges (deploy/bridges); nil: no WhatsApp or Messenger.
+    public var matrix: MatrixAccess?
     /// The git commit being served, from bin/VERSION.
     public var commit: String?
     /// Run the timed jobs (only `serve` does; commands and tests don't).
@@ -55,6 +58,13 @@ public struct RelayConfig: Sendable {
             if v != ":memory:" { c.chatsDirectory = Paths.parent(v) }
         }
         if let v = value("HEARTH_CHATS_DIR") { c.chatsDirectory = v }
+        if let url = value("HEARTH_MATRIX_URL"), let tokenFile = value("HEARTH_MATRIX_TOKEN_FILE"),
+            let owner = value("HEARTH_MATRIX_USER")
+        {
+            let names = (value("HEARTH_BRIDGES") ?? "").split(whereSeparator: { $0 == " " || $0 == "," })
+            let networks = names.compactMap { BridgeNetwork.named(String($0)) }
+            if !networks.isEmpty { c.matrix = MatrixAccess(homeserver: url, tokenFile: tokenFile, owner: owner, networks: networks) }
+        }
         if let v = value("HEARTH_BACKUP_DIR") {
             c.backupDirectory = v
         } else if case .file(let path) = c.database {

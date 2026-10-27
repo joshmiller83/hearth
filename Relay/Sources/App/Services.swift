@@ -39,7 +39,7 @@ public struct RelayServices: Sendable {
     public var apns: APNsClient?
     /// Plain HTTPS for public sources.
     public var http: any HTTPTransport
-    /// Texts, as `hearth-messages` exported them.
+    /// Texts, as `hearth-messages` exported them, and the bridges' chats.
     public var chats: ChatStore
 }
 
@@ -70,7 +70,7 @@ extension Application {
     public func jobContext() -> JobContext {
         JobContext(
             db: db, google: relay.google.reader, household: relay.household, now: relay.config.now,
-            logger: logger, claude: relay.claude, http: relay.http)
+            logger: logger, claude: relay.claude, http: relay.http, chats: relay.chats, matrix: relay.config.matrix)
     }
 }
 

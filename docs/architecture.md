@@ -18,6 +18,12 @@
    helper, `hearth-messages`, runs every two minutes as a LaunchAgent, opens the
    Messages database read-only (the only Hearth process with Full Disk Access)
    and leaves an export the relay serves. Nothing sends a text.
+6. **WhatsApp and Messenger**, optionally. The Mac runs the mautrix bridges, which
+   sign in as linked devices, and a private Synapse homeserver they put each chat
+   into as a room (`deploy/bridges`). Every two minutes the relay's bridges job
+   reads the rooms with the client API's `/sync` and asks each bridge whether it's
+   still signed in; what it reads sits beside `hearth-messages`' export, and the
+   chats routes serve both as one. Nothing sends a message.
 
 **The phone** does everything else: every screen with an offline cache, EventKit
 (iCloud Family, Birthdays) and Contacts, every interactive Claude feature
@@ -35,6 +41,7 @@ notifications, the share extension and the StandBy widgets.
 | Quiet hours | `QuietHours` |
 | Texts are read only, and only the helper opens Messages | `ChatDatabase` opens with `mode=ro`; no route or job imports `ChatReader` (`DependencyGraphTests`); the relay's Claude never gets texts |
 | No secrets in git | keys in the iOS Keychain and `~/HearthRelay/secrets`; household details in `~/HearthRelay/household.json` |
+| Bridged chats are read only and stay on the Mac | The bridges job only reads (`/sync`, the bridges' `whoami`); a test keeps sends, joins and receipts out of it (`DependencyGraphTests`). Synapse and the bridges listen on 127.0.0.1 only; no federation listener, `federation_domain_whitelist: []`, no key servers (`deploy/bridges/build.sh` writes `hearth.yaml`); the relay's Claude never gets the chats |
 
 ## Relay API
 
@@ -52,7 +59,7 @@ except `GET /v1/health`, which without the key answers only `{"status":"ok"}`.
 | `POST /v1/tools/gmail_search` | M5 | Ask's mail search, read-only (any other tool name is a 404) |
 | `GET /v1/signals[?refresh=1]` | M6 | The weather the relay watches (NWS alerts, the night's low); the phone adds mail-derived signals |
 | `GET|POST /v1/feeds`, `DELETE /v1/feeds/:id`, `POST /v1/feeds/preview` | M8 | Event feeds and their kept events; a feed read once for the chat (public https only) |
-| `GET /v1/chats`, `GET /v1/chats/thread?id=`, `POST /v1/tools/chats_search` | Texts | Recent conversations and what's waiting on the owner; one conversation; Ask's text search. All from `hearth-messages`' export |
+| `GET /v1/chats`, `GET /v1/chats/thread?id=`, `POST /v1/tools/chats_search` | Texts | Recent conversations and what's waiting on the owner, with each source's status; one conversation; Ask's search. From `hearth-messages`' export and the bridges job's |
 
 ## Claude
 

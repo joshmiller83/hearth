@@ -52,17 +52,19 @@ public func configure(
         now: config.now,
         logger: app.logger
     )
+    var jobs: [any RelayJob] = [CalendarCacheJob(), MailSweepJob(), BriefJob(), WeatherJob(), FeedsJob()]
+    if config.matrix != nil { jobs.append(BridgedChatsJob()) }
     app.relay = RelayServices(
         config: config,
         household: household,
         google: access,
         executor: executor,
-        jobs: JobRunner(jobs: [CalendarCacheJob(), MailSweepJob(), BriefJob(), WeatherJob(), FeedsJob()]),
+        jobs: JobRunner(jobs: jobs),
         refresher: CalendarRefresher(),
         claude: claude,
         apns: config.loadAPNs().flatMap { try? APNsClient(config: $0, client: app.client) },
         http: http ?? VaporHTTPTransport(client: app.client),
-        chats: ChatStore(directory: config.chatsDirectory)
+        chats: ChatStore(directory: config.chatsDirectory, readsBridges: config.matrix != nil)
     )
 
     app.failedAuth = FailedAuthLimiter()

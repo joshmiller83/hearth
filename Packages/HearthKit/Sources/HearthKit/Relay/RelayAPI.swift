@@ -82,11 +82,13 @@ public struct HealthResponse: Codable, Hashable, Sendable {
     public var push: Bool?
     /// Whether the Mac's Messages helper can read texts.
     public var chats: ChatSourceStatus?
+    /// Every chat source's status: Messages, then each bridge the Mac runs.
+    public var chatSources: [ChatSourceStatus]?
 
     public init(
         status: String, version: String, commit: String? = nil, now: Date? = nil, gmailkit: BridgeStatus? = nil,
         accounts: [Account]? = nil, household: Household? = nil, jobs: [JobStatus]? = nil,
-        claude: Bool? = nil, push: Bool? = nil, chats: ChatSourceStatus? = nil
+        claude: Bool? = nil, push: Bool? = nil, chats: ChatSourceStatus? = nil, chatSources: [ChatSourceStatus]? = nil
     ) {
         self.status = status
         self.version = version
@@ -99,6 +101,7 @@ public struct HealthResponse: Codable, Hashable, Sendable {
         self.claude = claude
         self.push = push
         self.chats = chats
+        self.chatSources = chatSources
     }
 }
 

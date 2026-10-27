@@ -171,7 +171,7 @@ public final class AskModel {
         let readsApple = calendar.access() == .full
         return AskToolbox(
             tools: AskPrompt.tools(accounts: accounts, texts: app?.chats.available ?? false), relay: relay, people: services.people,
-            household: household, now: now,
+            household: household, now: now, bridged: app?.chats.bridges.contains { $0.state == .ok } ?? false,
             events: { from, to in
                 var google = cached.filter { $0.end > from && $0.start < to }
                 if let relay, let fresh = try? await relay.events(from: from, to: to, refresh: false) { google = fresh.events }
@@ -269,6 +269,8 @@ struct AskToolbox: ClaudeToolbox {
     let people: any PeopleDirectory
     let household: Household
     let now: Date
+    /// WhatsApp or Messenger can be read, so someone can be found by the name the network gives them.
+    let bridged: Bool
     /// Every calendar's events overlapping a range (Google from the relay, Apple from EventKit).
     let events: @Sendable (Date, Date) async -> [AgendaEvent]
 
@@ -331,7 +333,8 @@ struct AskToolbox: ClaudeToolbox {
             var handles: [String] = []
             if !person.isEmpty {
                 handles = await people.handles(for: person)
-                guard !handles.isEmpty else {
+                // WhatsApp and Messenger know people by name too; only texts need a contact.
+                guard !handles.isEmpty || bridged else {
                     return ToolOutcome(
                         text: "No contact with a phone number or email matches “\(person)”. Try their full name, or search without one.",
                         trace: "\(person) · not found")
@@ -339,7 +342,9 @@ struct AskToolbox: ClaudeToolbox {
             }
             let days = min(max(input["days"]?.intValue ?? 30, 1), 60)
             do {
-                let found = try await relay.searchChats(ChatSearchRequest(query: query, handles: handles, days: days, limit: 20))
+                let named = bridged && !person.isEmpty ? person : nil
+                let found = try await relay.searchChats(
+                    ChatSearchRequest(query: query, handles: handles, days: days, limit: 20, person: named))
                 let names = await people.names(for: found.threads.flatMap(\.handles) + found.messages.compactMap(\.sender))
                 return AskFormat.chats(found, names: names, query: query, person: person, fmt: fmt)
             } catch {

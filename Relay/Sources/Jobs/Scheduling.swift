@@ -76,10 +76,15 @@ public struct JobContext: Sendable {
     public var claude: ClaudeClient?
     /// Plain HTTPS, for public sources like the weather service.
     public var http: (any HTTPTransport)?
+    /// Texts and bridged chats, where the bridges job keeps what it reads.
+    public var chats: ChatStore?
+    /// The Mac's Matrix homeserver, when it runs the bridges.
+    public var matrix: MatrixAccess?
 
     public init(
         db: any Database, google: any GoogleReader, household: Household, now: @escaping @Sendable () -> Date,
-        logger: Logger, claude: ClaudeClient? = nil, http: (any HTTPTransport)? = nil
+        logger: Logger, claude: ClaudeClient? = nil, http: (any HTTPTransport)? = nil, chats: ChatStore? = nil,
+        matrix: MatrixAccess? = nil
     ) {
         self.db = db
         self.google = google
@@ -88,6 +93,8 @@ public struct JobContext: Sendable {
         self.logger = logger
         self.claude = claude
         self.http = http
+        self.chats = chats
+        self.matrix = matrix
     }
 
     public var cache: Cache { Cache(db: db) }

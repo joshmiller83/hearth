@@ -19,6 +19,7 @@ struct SourcesView: View {
 
             GmailkitCard()
             TextsCard()
+            if !app.chats.bridges.isEmpty { ChatBridgesCard() }
             RelayCard()
             ClaudeCard()
             NotificationsCard()
@@ -181,6 +182,38 @@ private struct TextsCard: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+}
+
+/// WhatsApp and Messenger, through the bridges on the Mac (deploy/bridges): whether each
+/// is signed in and read, and what to do on the Mac when it isn't.
+private struct ChatBridgesCard: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        let chats = app.chats
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(chats.bridges.enumerated()), id: \.offset) { index, bridge in
+                    let source = bridge.source ?? ""
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 12) {
+                            LetterTile(letters: source == ChatSource.whatsApp ? "WA" : "FB", tint: .ice)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(ChatSource.label(source)).font(.hRowTitle).foregroundStyle(Theme.ink)
+                                Text("Through the Mac's bridge · read only, never sent").font(.hMeta).foregroundStyle(Theme.muted)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            StatusPill(
+                                text: bridge.state == .ok ? "Reading" : bridge.state == .needsAccess ? "Sign in" : "Stopped",
+                                good: bridge.state == .ok)
+                        }
+                        Text(chats.bridgeLine(bridge)).font(.hMeta).foregroundStyle(Theme.muted).lineSpacing(2)
+                    }
+                    .overlay(alignment: .top) { if index > 0 { Hairline().offset(y: -6) } }
                 }
             }
         }

@@ -2,6 +2,30 @@
 
 What each milestone left for later. Newest first.
 
+## WhatsApp and Messenger (bridges)
+
+- They come in through bridges on the Mac (`deploy/bridges`), which need setting
+  up and a monthly update (`make bridges`). The bridges sign in as a linked
+  device; WhatsApp unlinks it after the phone has been off for 14 days.
+- Read only, like texts: Hearth never sends, reacts or marks anything read.
+  Open in WhatsApp or Messenger hands off for one-on-one chats.
+- A chat new to the relay brings its latest 50 messages; after that the relay
+  keeps up every two minutes. A burst of more than 50 in two minutes in one chat
+  keeps only the latest 50.
+- Names come from Contacts where WhatsApp shows a number, else the name the
+  network gives. Ask finds someone by either; texts still need a contact.
+- A network that's signed out drops out of Texts and Today until you sign in
+  again; Sources says so, but nothing pushes yet.
+- Photos and files are noted, not read; edits replace the text, reactions and
+  replies-in-thread structure are left out.
+- The terminal login handles QR codes, pairing codes, typed answers and cookies.
+  A network that asks for anything else needs a Matrix client on the Mac.
+- Media that nobody opens for 90 days is deleted from the homeserver, and the
+  nightly backup leaves media out. Synapse runs on SQLite, which suits one
+  person; `synapse_port_db` moves it to Postgres if it ever needs to.
+- iMessage and SMS aren't bridged: they come in through Texts and
+  `hearth-messages`.
+
 ## Texts (iMessage and SMS)
 
 - Read only, the last 60 days, refreshed every two minutes while the Mac is
