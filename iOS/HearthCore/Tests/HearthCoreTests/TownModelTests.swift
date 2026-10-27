@@ -32,6 +32,24 @@ struct TownModelTests {
         #expect(town.shown.allSatisfy { $0.free })
     }
 
+    @Test func anEventThatIsntForThemIsHidden() async throws {
+        let (app, services) = await loaded()
+        let town = app.town
+        let market = try #require(town.featured)
+        town.hide(market)
+        #expect(town.featured?.id != market.id)
+        #expect(!town.shown.contains(market))
+        #expect(town.hiddenCount == 1)
+        town.undoHide()
+        #expect(town.featured == market)
+        town.hide(market)
+        // Remembered across launches; put back on request.
+        let again = AppModel(services: services)
+        #expect(again.town.hidden == [market.id])
+        again.town.showHidden()
+        #expect(again.town.hiddenCount == 0)
+    }
+
     @Test func anEventGoesOnTheFamilyCalendarAndComesOff() async throws {
         let (app, services) = await loaded()
         let town = app.town

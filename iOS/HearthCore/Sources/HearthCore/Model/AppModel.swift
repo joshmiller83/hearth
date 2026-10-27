@@ -169,12 +169,13 @@ public final class AppModel {
         return items.filter { rule.match.matches($0.item, labelNames: [:], now: now) }.count
     }
 
-    /// Tells the relay the owner's switches, mail rules and the Apple calendars it can't see.
+    /// Tells the relay the owner's switches, mail rules, what they left out of the queues, and the Apple calendars it can't see.
     public func uploadContext() async {
         guard let relay else { return }
         let apple = plans.appleEvents.filter { $0.start < now.addingTimeInterval(14 * 86400) }
         let custom = services.database.load([MailRule].self, key: StoreKey.mailRules)
-        try? await relay.uploadContext(PhoneContext(rules: rules, appleEvents: apple, mailRules: custom, uploadedAt: now))
+        let context = PhoneContext(rules: rules, appleEvents: apple, mailRules: custom, leftOut: inbox.leftOut.sorted(), uploadedAt: now)
+        try? await relay.uploadContext(context)
     }
 
     /// Everything the app shows, fresh: health first (it carries the household), then plans.

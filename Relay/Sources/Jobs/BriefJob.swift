@@ -34,7 +34,7 @@ public struct BriefJob: RelayJob {
         let now = context.now()
         let google = try await cache.get(EventsResponse.self, Cache.events)?.events ?? []
         let agenda = Agenda(events: google + (phone?.appleEvents ?? []), household: context.household)
-        let mail = try await cache.get(MailSnapshot.self, Cache.mailSnapshot)
+        let mail = try await cache.get(MailSnapshot.self, Cache.mailSnapshot)?.leavingOut(Set(phone?.leftOut ?? []))
         let input = BriefInput.gather(agenda: agenda, mail: mail, now: now)
         let (reply, response) = try await claude.structured(BriefPrompt.request(input), as: BriefPrompt.Reply.self)
         let brief = BriefPrompt.brief(reply, input: input)

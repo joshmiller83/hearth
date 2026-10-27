@@ -102,6 +102,7 @@ private struct QueueTiles: View {
 private struct QueueList: View {
     @Environment(AppModel.self) private var app
     @Binding var opened: TriagedMail?
+    @State private var showLeftOut = false
 
     var body: some View {
         let inbox = app.inbox
@@ -125,6 +126,46 @@ private struct QueueList: View {
                         .overlay(alignment: .top) { if index > 0 { Hairline() } }
                 }
             }
+            if inbox.leftOutCount > 0 { leftOut }
+        }
+        .onChange(of: inbox.queue) { showLeftOut = false }
+    }
+
+    /// "2 left out · they stay in your inbox", folded; Archive them (an errant reply needn't sit there).
+    @ViewBuilder var leftOut: some View {
+        let inbox = app.inbox
+        let folded = inbox.leftOutRows
+        HStack(spacing: 4) {
+            Button {
+                withAnimation(.snappy) { showLeftOut.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    if !folded.isEmpty {
+                        Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold))
+                            .rotationEffect(.degrees(showLeftOut ? 90 : 0))
+                    }
+                    Text("\(inbox.leftOutCount) left out · stay\(inbox.leftOutCount == 1 ? "s" : "") in your inbox")
+                        .font(.custom(Typeface.semibold, size: 14, relativeTo: .subheadline))
+                }
+                .foregroundStyle(Theme.muted)
+                .frame(maxWidth: .infinity, minHeight: Theme.touch, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(folded.isEmpty)
+            .accessibilityHint(folded.isEmpty ? "" : showLeftOut ? "Hides them" : "Shows them")
+            if inbox.queue != .archive {
+                TextButton(title: "Archive them") { inbox.archiveLeftOut() }
+            }
+        }
+        .padding(.horizontal, 4)
+        if showLeftOut, !folded.isEmpty {
+            Card(padding: EdgeInsets(top: 0, leading: 14, bottom: 0, trailing: 14)) {
+                ForEach(Array(folded.enumerated()), id: \.element.id) { index, row in
+                    MailRow(row: row) { if !row.isBundle { opened = row.first } }
+                        .overlay(alignment: .top) { if index > 0 { Hairline() } }
+                }
+            }
         }
     }
 
@@ -141,9 +182,33 @@ private struct MailRow: View {
     let open: () -> Void
 
     var body: some View {
+        let inbox = app.inbox
+        let left = inbox.isLeftOut(row)
+        HStack(alignment: .center, spacing: 4) {
+            content.opacity(left ? 0.45 : 1)
+            Button {
+                withAnimation(.snappy) { inbox.toggle(row) }
+            } label: {
+                ZStack {
+                    Circle().fill(left ? Color.clear : Theme.emberDeep)
+                    Circle().strokeBorder(left ? Theme.stone : Theme.emberLine, lineWidth: 1.5)
+                    if !left { Image(systemName: "checkmark").font(.system(size: 11, weight: .heavy)).foregroundStyle(Theme.emberSoft) }
+                }
+                .frame(width: 24, height: 24)
+                .frame(width: Theme.touch, height: Theme.touch)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(left ? "Put back in \(inbox.queue.label)" : "Leave out of \(inbox.queue.label)")
+            .accessibilityValue(row.isBundle ? (row.first.bundle ?? "Bundle") : row.first.item.senderName)
+        }
+    }
+
+    var content: some View {
         let mail = row.first
         let item = mail.item
-        Button(action: open) {
+        let left = app.inbox.isLeftOut(row)
+        return Button(action: open) {
             HStack(alignment: .top, spacing: 12) {
                 Text(row.isBundle ? String(mail.bundle?.prefix(1) ?? "B") : item.initial)
                     .font(.custom(Typeface.bold, size: 15, relativeTo: .body))
@@ -166,7 +231,7 @@ private struct MailRow: View {
                         .font(.hMeta).foregroundStyle(Theme.muted).lineLimit(2)
                     HStack(spacing: 6) {
                         TagChip(text: item.account, style: .plain)
-                        TagChip(text: mail.tag, style: TagChip.style(for: mail.tag))
+                        TagChip(text: left ? TriagedMail.leftOutTag : mail.tag, style: left ? .plain : TagChip.style(for: mail.tag))
                     }
                     .padding(.top, 4)
                 }
@@ -207,7 +272,7 @@ struct TagChip: View {
     }
 }
 
-/// The queue's one button, its undo countdown, and what happened.
+/// The queue's button, always there; above it, each approved batch's countdown, Undo, and what happened.
 private struct ActionBar: View {
     @Environment(AppModel.self) private var app
     @Binding var opened: TriagedMail?
@@ -216,56 +281,64 @@ private struct ActionBar: View {
         let inbox = app.inbox
         TimelineView(.periodic(from: .now, by: 1)) { _ in
             VStack(spacing: 6) {
-                switch inbox.approval?.state {
-                case .waiting(let until)?:
-                    HStack(spacing: 10) {
-                        Text(
-                            "\(doing(inbox.approval!.queue)) \(inbox.approval!.count) in \(max(1, Int(until.timeIntervalSince(app.now).rounded(.up)))) s"
-                        )
-                        .font(.hButton).foregroundStyle(Theme.iceSoft)
-                        .frame(maxWidth: .infinity, minHeight: Theme.touch)
-                        .background(Theme.iceDeep, in: Capsule())
-                        Button("Undo") { inbox.undo() }.buttonStyle(.pill(.secondary)).frame(width: 96)
-                    }
-                case .sending?:
-                    ProgressView().frame(maxWidth: .infinity, minHeight: Theme.touch)
-                case .done(let line)?:
-                    Button {
-                        inbox.dismissApproval()
-                    } label: {
-                        Label(line, systemImage: "checkmark")
-                    }
-                    .buttonStyle(.pill(.ice))
-                case .failed(let message)?:
-                    Notice(text: message)
-                    Button("OK") { inbox.dismissApproval() }.buttonStyle(.pill(.secondary))
-                case nil:
-                    Button(inbox.actionLabel) {
-                        if inbox.queue == .reply {
-                            opened = inbox.rows.first?.first
-                        } else {
-                            inbox.approve()
-                        }
-                    }
-                    .buttonStyle(.pill(.primary))
-                    .disabled(inbox.count(inbox.queue) == 0)
+                ForEach(inbox.approvals) { approval in
+                    status(approval)
                 }
+                Button(inbox.actionLabel) {
+                    if inbox.queue == .reply {
+                        opened = inbox.rows.first { !inbox.isLeftOut($0) }?.first
+                    } else {
+                        inbox.approve()
+                    }
+                }
+                .buttonStyle(.pill(.primary))
+                .disabled(inbox.count(inbox.queue) == 0)
                 Text(inbox.actionNote).font(.custom(Typeface.regular, size: 12, relativeTo: .caption)).foregroundStyle(Theme.muted)
+                    .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 8)
             .background(Theme.tabBar.opacity(0.97))
             .overlay(alignment: .top) { Hairline() }
+            .animation(.snappy, value: inbox.approvals.map(\.id))
         }
     }
 
-    func doing(_ queue: MailQueue) -> String {
-        switch queue {
-        case .reply: "Marking"
-        case .jobHunt: "Filing"
-        case .archive: "Archiving"
-        case .delete: "Trashing"
+    /// "Archiving 34 in 7 s · Undo", "Archiving 34…", "✓ Archived 34 ✕".
+    func status(_ approval: InboxModel.Approval) -> some View {
+        let inbox = app.inbox
+        let failed: Bool = if case .failed = approval.state { true } else { false }
+        return HStack(spacing: 8) {
+            switch approval.state {
+            case .waiting:
+                Text(inbox.doing(approval)).foregroundStyle(Theme.iceSoft)
+                Spacer(minLength: 4)
+                TextButton(title: "Undo", color: Theme.ember) { inbox.undo(approval.id) }
+            case .sending:
+                ProgressView().tint(Theme.iceSoft)
+                Text(inbox.doing(approval)).foregroundStyle(Theme.iceSoft)
+                Spacer(minLength: 4)
+            case .done, .failed:
+                Label(inbox.doing(approval), systemImage: failed ? "exclamationmark.circle" : "checkmark")
+                    .foregroundStyle(failed ? Theme.emberSoft : Theme.iceSoft)
+                    .lineLimit(2)
+                Spacer(minLength: 4)
+                Button {
+                    inbox.dismiss(approval.id)
+                } label: {
+                    Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.muted)
+                        .frame(width: Theme.touch, height: Theme.touch)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss")
+            }
         }
+        .font(.custom(Typeface.semibold, size: 15, relativeTo: .body))
+        .padding(.leading, 16)
+        .padding(.trailing, 6)
+        .frame(minHeight: Theme.touch)
+        .background(failed ? Theme.emberDeep : Theme.iceDeep, in: Capsule())
+        .accessibilityElement(children: .contain)
     }
 }

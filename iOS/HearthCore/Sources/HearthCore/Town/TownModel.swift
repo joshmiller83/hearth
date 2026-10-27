@@ -35,6 +35,10 @@ public final class TownModel {
     public var filter: Filter = .forYouTwo
     /// Events put on the family calendar from here: feed event → calendar event.
     private(set) var added: [String: String]
+    /// Events the owner said aren't for them: off Around town until put back.
+    public private(set) var hidden: Set<String>
+    /// The last one hidden, for Undo.
+    public private(set) var lastHidden: FeedEvent?
 
     public private(set) var chat: [ChatLine] = []
     public private(set) var chatPhase: Phase = .idle
@@ -53,6 +57,7 @@ public final class TownModel {
         feeds = cached?.feeds ?? []
         events = cached?.events ?? []
         added = services.database.load([String: String].self, key: StoreKey.townAdded) ?? [:]
+        hidden = Set(services.database.load([String].self, key: StoreKey.townHidden) ?? [])
     }
 
     var now: Date { services.clock.now }
@@ -72,6 +77,12 @@ public final class TownModel {
         feeds = response.feeds
         events = response.events.filter { $0.end > now }.sorted { $0.start < $1.start }
         try? services.database.save(response, key: StoreKey.feeds, now: now)
+        // Past events drop off the feeds; so do their hidden marks.
+        let current = hidden.intersection(events.map(\.id))
+        if current != hidden {
+            hidden = current
+            saveHidden()
+        }
     }
 
     // MARK: Around town
@@ -100,10 +111,11 @@ public final class TownModel {
 
     public var shown: [FeedEvent] {
         events.filter { event in
+            guard !hidden.contains(event.id) else { return false }
             switch filter {
-            case .forYouTwo: fits(event)
-            case .category(let category): feed(event)?.category == category
-            case .free: event.free
+            case .forYouTwo: return fits(event)
+            case .category(let category): return feed(event)?.category == category
+            case .free: return event.free
             }
         }
     }
@@ -112,6 +124,7 @@ public final class TownModel {
     public var featured: FeedEvent? {
         let calendar = household.fmt.calendar
         return events.first { event in
+            guard !hidden.contains(event.id) else { return false }
             let weekday = calendar.component(.weekday, from: event.start)
             return event.start.timeIntervalSince(now) < 7 * 86400 && (weekday == 1 || weekday == 6 || weekday == 7) && fits(event)
         }
@@ -161,6 +174,33 @@ public final class TownModel {
         } catch {
             problem = (error as? CalendarWriteError)?.description ?? String(describing: error)
         }
+    }
+
+    /// "Not for us": takes an event off Around town (anything already on the calendar stays there).
+    public func hide(_ event: FeedEvent) {
+        hidden.insert(event.id)
+        lastHidden = event
+        saveHidden()
+    }
+
+    public func undoHide() {
+        guard let event = lastHidden else { return }
+        hidden.remove(event.id)
+        lastHidden = nil
+        saveHidden()
+    }
+
+    /// Puts every hidden event back.
+    public func showHidden() {
+        hidden = []
+        lastHidden = nil
+        saveHidden()
+    }
+
+    public var hiddenCount: Int { events.filter { hidden.contains($0.id) }.count }
+
+    func saveHidden() {
+        try? services.database.save(hidden.sorted(), key: StoreKey.townHidden, now: now)
     }
 
     /// What "Send to …" shares.
@@ -298,4 +338,5 @@ struct FeedToolbox: ClaudeToolbox {
 extension StoreKey {
     public static let feeds = "relay.feeds"
     public static let townAdded = "town.added"
+    public static let townHidden = "town.hidden"
 }

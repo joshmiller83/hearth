@@ -15,7 +15,7 @@ struct InboxModelTests {
     }
 
     func settle(_ inbox: InboxModel) async {
-        for _ in 0..<50 where inbox.approval.map({ !$0.isFinished }) ?? false { await Task.yield() }
+        for _ in 0..<50 where inbox.approvals.contains(where: { !$0.isFinished }) { await Task.yield() }
     }
 
     @Test func queuesCountAndFilterByAccount() async {
@@ -49,9 +49,11 @@ struct InboxModelTests {
         let inbox = app.inbox
         inbox.queue = .archive
         inbox.approve()
-        #expect(inbox.approval?.state == .waiting(until: Fixtures.now.addingTimeInterval(10)))
+        #expect(inbox.approvals.last?.state == .waiting(until: Fixtures.now.addingTimeInterval(10)))
+        #expect(inbox.count(.archive) == 0)
+        #expect(inbox.actionLabel == "Nothing to archive")
         await settle(inbox)
-        #expect(inbox.approval?.state == .done("Archived 5"))
+        #expect(inbox.approvals.last?.state == .done("Archived 5"))
         #expect(inbox.count(.archive) == 0)
         let relay = try #require(app.relay as? FixtureRelay)
         let sent = await relay.submitted.map(\.kind)
@@ -88,12 +90,92 @@ struct InboxModelTests {
         let app = await loaded()
         app.inbox.queue = .archive
         app.inbox.approve()
-        app.inbox.undo()
+        app.inbox.undo(try #require(app.inbox.approvals.last?.id))
         for _ in 0..<20 { await Task.yield() }
-        #expect(app.inbox.approval == nil)
+        #expect(app.inbox.approvals.isEmpty)
         #expect(app.inbox.count(.archive) == 5)
         let relay = try #require(app.relay as? FixtureRelay)
         #expect(await relay.submitted.isEmpty)
+    }
+
+    @Test func leftOutRowsStayInTheInbox() async throws {
+        let app = await loaded()
+        let inbox = app.inbox
+        inbox.queue = .archive
+        let github = try #require(inbox.rows.first { $0.isBundle })
+        inbox.toggle(github)
+        // It stays in place, dimmed, until the queue is opened again.
+        #expect(inbox.isLeftOut(github))
+        #expect(inbox.rows.count == 4)
+        #expect(inbox.leftOutRows.isEmpty)
+        #expect(inbox.actionLabel == "Archive 3")
+        #expect(inbox.actionNote.hasSuffix("2 left out stay in your inbox."))
+        #expect(inbox.keptNote?.contains("2 left out") == true)
+        inbox.queue = .reply
+        inbox.queue = .archive
+        #expect(inbox.rows.count == 3)
+        #expect(inbox.leftOutRows.map(\.items.count) == [2])
+        inbox.approve()
+        await settle(inbox)
+        let relay = try #require(app.relay as? FixtureRelay)
+        let sent = await relay.submitted.flatMap { action -> [String] in
+            if case .modifyMail(_, let ids, _) = action.kind { ids } else { [] }
+        }
+        #expect(!sent.contains(where: github.items.map(\.item.id).contains))
+        #expect(inbox.count(.archive) == 0)
+        // Put back, it's in the queue again.
+        inbox.toggle(try #require(inbox.leftOutRows.first))
+        #expect(inbox.count(.archive) == 2)
+        #expect(inbox.leftOutCount == 0)
+    }
+
+    @Test func anErrantReplyLeavesTodayAndCanBeArchived() async throws {
+        let app = await loaded()
+        let inbox = app.inbox
+        inbox.queue = .reply
+        let first = try #require(inbox.rows.first)
+        #expect(TodaySummary.make(app: app).needsYou.contains { $0.id == first.id })
+        inbox.toggle(first)
+        #expect(inbox.count(.reply) == 4)
+        #expect(!TodaySummary.make(app: app).needsYou.contains { $0.id == first.id })
+        inbox.archiveLeftOut()
+        #expect(inbox.leftOutCount == 0)
+        await settle(inbox)
+        #expect(inbox.approvals.last?.state == .done("Archived 1"))
+        let relay = try #require(app.relay as? FixtureRelay)
+        #expect(
+            await relay.submitted.map(\.kind) == [
+                .modifyMail(account: first.first.item.account, messageIds: [first.first.item.id], change: .archive)
+            ])
+        #expect(inbox.leftOut.isEmpty)
+    }
+
+    @Test func leavingOutIsRememberedAndPrunedWhenTheMailIsGone() async throws {
+        let services = AppServices.fixtures(waits: false)
+        let app = AppModel(services: services)
+        await app.refreshAll()
+        app.inbox.leaveOut("work:m1")
+        app.inbox.leaveOut("home:gone")
+        let again = AppModel(services: services)
+        #expect(again.inbox.leftOut == ["work:m1", "home:gone"])
+        await again.refreshAll()
+        #expect(again.inbox.leftOut == ["work:m1"])
+    }
+
+    @Test func aBatchCanStartWhileAnotherWaits() async throws {
+        let app = AppModel(services: .fixtures())
+        await app.refreshAll()
+        let inbox = app.inbox
+        inbox.queue = .archive
+        inbox.approve()
+        inbox.queue = .delete
+        #expect(inbox.actionLabel == "Move 1 to Trash")
+        inbox.approve()
+        #expect(inbox.approvals.map(\.queue) == [.archive, .delete])
+        #expect(inbox.approvals.map { inbox.doing($0) } == ["Archiving 5 in 10 s", "Trashing 1 in 10 s"])
+        inbox.undo(inbox.approvals[0].id)
+        #expect(inbox.approvals.map(\.queue) == [.delete])
+        #expect(inbox.count(.archive) == 5)
     }
 
     @Test func repliesAreNotBatchApproved() async {
@@ -101,7 +183,7 @@ struct InboxModelTests {
         let inbox = app.inbox
         inbox.queue = .reply
         inbox.approve()
-        #expect(inbox.approval == nil)
+        #expect(inbox.approvals.isEmpty)
         #expect(inbox.actionLabel == "Open the first")
     }
 }

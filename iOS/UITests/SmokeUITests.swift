@@ -59,15 +59,23 @@ final class SmokeUITests: XCTestCase {
     }
 
     @MainActor
-    func testArchivingAQueueCanBeUndone() {
+    func testArchivingAQueueLeavesOutWhatYouUncheckAndCanBeUndone() {
         let app = launch()
         app.tabBars.buttons["Inbox"].tap()
         app.buttons["Archive, 5"].tap()
-        let archive = app.buttons["Archive 5"]
-        XCTAssertTrue(archive.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Archive 5"].waitForExistence(timeout: 5))
+        // The GitHub bundle: both of its messages stay.
+        app.buttons.matching(NSPredicate(format: "label == %@ AND value == %@", "Leave out of Archive", "GitHub")).firstMatch.tap()
+        let archive = app.buttons["Archive 3"]
+        XCTAssertTrue(archive.waitForExistence(timeout: 3))
         archive.tap()
-        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout: 3))
+        // The countdown sits above the button; the button stays.
+        let countdown = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Archiving 3 in'")).firstMatch
+        XCTAssertTrue(countdown.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Nothing to archive"].exists)
         app.buttons["Undo"].tap()
+        XCTAssertTrue(app.buttons["Archive 3"].waitForExistence(timeout: 3))
+        app.buttons.matching(NSPredicate(format: "label == %@", "Put back in Archive")).firstMatch.tap()
         XCTAssertTrue(app.buttons["Archive 5"].waitForExistence(timeout: 3))
     }
 

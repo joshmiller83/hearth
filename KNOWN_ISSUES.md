@@ -2,6 +2,17 @@
 
 What each milestone left for later. Newest first.
 
+## Leaving mail out, and the queue button
+
+- Leaving a message out is remembered on the phone and sent to the relay with
+  the phone's context, so the brief skips it. The relay's sweep still sorts it
+  into its queue; the phone keeps it out. A left-out message is forgotten once
+  it leaves the inbox.
+- Calendar invitation emails go to Reply by rule. Their RSVP happens in Plans,
+  so the email can linger after you answer. Leave it out, or Archive them.
+- Around town: "Not for us" is on the featured card. On the list it's a long
+  press (or a VoiceOver action). Hidden events come back with Show them.
+
 ## M8 Around town, event feeds & Facebook
 
 - Calendar feeds are fetched every 6 hours. Pages and weekly emails without a

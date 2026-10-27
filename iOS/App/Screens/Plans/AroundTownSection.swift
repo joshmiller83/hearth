@@ -57,6 +57,27 @@ struct AroundTownSection: View {
             .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(Theme.line, lineWidth: 1))
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Upcoming events")
+            hiddenLine
+        }
+    }
+
+    /// "Hid Trunk or Treat · Undo", or "3 hidden · Show them".
+    @ViewBuilder var hiddenLine: some View {
+        let town = app.town
+        if let last = town.lastHidden {
+            HStack(spacing: 4) {
+                Text("Hid \(last.title)").font(.hMeta).foregroundStyle(Theme.muted).lineLimit(1)
+                Spacer(minLength: 4)
+                TextButton(title: "Undo") { withAnimation(.snappy) { town.undoHide() } }
+            }
+            .padding(.horizontal, 4)
+        } else if town.hiddenCount > 0 {
+            HStack(spacing: 4) {
+                Text("\(town.hiddenCount) hidden as not for you").font(.hMeta).foregroundStyle(Theme.muted)
+                Spacer(minLength: 4)
+                TextButton(title: "Show them") { withAnimation(.snappy) { town.showHidden() } }
+            }
+            .padding(.horizontal, 4)
         }
     }
 
@@ -99,6 +120,7 @@ private struct FeaturedEvent: View {
                 }
                 .buttonStyle(.pill(.secondary, height: 44))
             }
+            TextButton(title: "Not for us", color: Theme.muted) { withAnimation(.snappy) { town.hide(event) } }
         }
         .padding(16)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
@@ -159,5 +181,10 @@ private struct TownRow: View {
             .accessibilityLabel(added ? "Remove \(event.title) from calendar" : "Add \(event.title) to calendar")
         }
         .padding(.vertical, 12)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button("Not for us", systemImage: "eye.slash") { withAnimation(.snappy) { town.hide(event) } }
+        }
+        .accessibilityAction(named: "Not for us") { town.hide(event) }
     }
 }

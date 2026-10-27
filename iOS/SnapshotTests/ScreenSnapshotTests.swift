@@ -32,6 +32,19 @@ final class ScreenSnapshotTests: XCTestCase {
         assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
     }
 
+    /// A batch counting down above the button, and a row just left out.
+    func testInboxLeavingOneOut() async {
+        let model = AppEnvironment.makeModel(mode: .fixtures)
+        await model.refreshAll()
+        model.inbox.queue = .delete
+        model.inbox.approve()
+        model.inbox.queue = .archive
+        if let github = model.inbox.rows.first(where: \.isBundle) { model.inbox.toggle(github) }
+        let host = UIHostingController(rootView: NavigationStack { InboxView() }.environment(model).preferredColorScheme(.dark))
+        host.overrideUserInterfaceStyle = .dark
+        assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
+    }
+
     func testAsk() async {
         let model = AppEnvironment.makeModel(mode: .fixtures)
         await model.refreshAll()

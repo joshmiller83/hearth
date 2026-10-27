@@ -142,6 +142,10 @@ struct TodayView: View {
                     LinkRow(symbol: "calendar", tint: .ice, title: item.title, detail: item.detail) { tab = .plans }
                 case .reply:
                     LinkRow(symbol: "arrowshape.turn.up.left", tint: .ember, title: item.title, detail: item.detail) { tab = .inbox }
+                        .contextMenu {
+                            Button("Not for me", systemImage: "minus.circle") { app.inbox.leaveOut(item.id) }
+                        }
+                        .accessibilityAction(named: "Not for me") { app.inbox.leaveOut(item.id) }
                 case .signal:
                     LinkRow(symbol: "bell", tint: .neutral, title: item.title, detail: item.detail) { path.append(.signals) }
                 }

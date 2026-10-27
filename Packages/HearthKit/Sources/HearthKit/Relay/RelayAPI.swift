@@ -161,12 +161,17 @@ public struct PhoneContext: Codable, Hashable, Sendable {
     public var appleEvents: [AgendaEvent]
     /// The mail rules as the owner set them in Sources; nil keeps the relay's.
     public var mailRules: [MailRule]?
+    /// Mail the owner left out of its queue (`TriagedMail.id`s), so the brief doesn't count it.
+    public var leftOut: [String]?
     public var uploadedAt: Date
 
-    public init(rules: HouseRules, appleEvents: [AgendaEvent] = [], mailRules: [MailRule]? = nil, uploadedAt: Date) {
+    public init(
+        rules: HouseRules, appleEvents: [AgendaEvent] = [], mailRules: [MailRule]? = nil, leftOut: [String]? = nil, uploadedAt: Date
+    ) {
         self.rules = rules
         self.appleEvents = appleEvents
         self.mailRules = mailRules
+        self.leftOut = leftOut
         self.uploadedAt = uploadedAt
     }
 }

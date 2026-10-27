@@ -170,6 +170,23 @@ public struct MailSnapshot: Codable, Hashable, Sendable {
         out.items.removeAll { $0.item.account == account && ids.contains($0.item.id) }
         return out
     }
+
+    /// With the messages the owner left out (by `TriagedMail.id`) kept in the inbox: off every queue and out of the brief.
+    public func leavingOut(_ ids: Set<String>) -> MailSnapshot {
+        guard !ids.isEmpty else { return self }
+        var out = self
+        for index in out.items.indices where out.items[index].queue != nil && ids.contains(out.items[index].id) {
+            out.items[index].queue = nil
+            out.items[index].tag = TriagedMail.leftOutTag
+            out.items[index].reason = "You left it out"
+        }
+        return out
+    }
+}
+
+extension TriagedMail {
+    /// The tag on mail the owner left out of its queue.
+    public static let leftOutTag = "Left out"
 }
 
 /// `GET /v1/mail/threads/:account/:id`: a thread's messages with their text.

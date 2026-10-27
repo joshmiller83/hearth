@@ -5,6 +5,8 @@ import Observation
 /// The Inbox: every account's mail in four queues, sorted by the relay. Nothing
 /// moves until the owner approves a queue; then it goes in one batch per
 /// account after a 10-second undo window. Trash is as far as anything goes.
+/// Any message can be left out of its queue: it stays in the inbox, off every
+/// queue, until it's put back.
 @MainActor
 @Observable
 public final class InboxModel {
@@ -25,8 +27,9 @@ public final class InboxModel {
         public var first: TriagedMail { items[0] }
     }
 
-    /// A queue the owner approved, waiting out its undo window or being sent.
-    public struct Approval: Equatable, Sendable {
+    /// A batch the owner approved, waiting out its undo window or being sent.
+    /// Several can be on their way at once; the queue's button stays.
+    public struct Approval: Identifiable, Equatable, Sendable {
         public enum State: Equatable, Sendable {
             case waiting(until: Date)
             case sending
@@ -34,25 +37,49 @@ public final class InboxModel {
             case failed(String)
         }
 
+        public let id: Int
+        /// What happens to them: archived, trashed or filed.
         public var queue: MailQueue
-        public var account: String?
-        public var count: Int
+        public var items: [TriagedMail]
         public var state: State
+        public var count: Int { items.count }
     }
 
     let services: AppServices
     weak var app: AppModel?
 
-    public private(set) var snapshot: MailSnapshot?
+    /// The relay's sort, as it last came.
+    private(set) var sorted: MailSnapshot?
     public private(set) var phase: Phase = .idle
-    public private(set) var approval: Approval?
+    public private(set) var approvals: [Approval] = []
+    private var nextApproval = 1
+    /// Messages the owner left out (`TriagedMail.id`s): they stay in the inbox, off every queue.
+    public private(set) var leftOut: Set<String>
+    /// Left out since this queue was opened: they stay in place, dimmed, so the rows don't shift under a finger.
+    public private(set) var justLeftOut: Set<String> = []
+    private var upload: Task<Void, Never>?
     /// Nil shows every account.
-    public var account: String?
-    public var queue: MailQueue = .reply
+    public var account: String? { didSet { justLeftOut = [] } }
+    public var queue: MailQueue = .reply { didSet { justLeftOut = [] } }
 
     init(services: AppServices) {
         self.services = services
-        snapshot = services.database.load(MailSnapshot.self, key: StoreKey.mail)
+        sorted = services.database.load(MailSnapshot.self, key: StoreKey.mail)
+        leftOut = Set(services.database.load([String].self, key: StoreKey.leftOut) ?? [])
+    }
+
+    /// The inbox as every screen sees it: left-out mail kept, approved batches already gone.
+    public var snapshot: MailSnapshot? {
+        guard let sorted else { return nil }
+        var out = sorted.leavingOut(leftOut)
+        let moving = self.moving
+        if !moving.isEmpty { out.items.removeAll { moving.contains($0.id) } }
+        return out
+    }
+
+    /// In a batch that's waiting out its undo window or being sent.
+    var moving: Set<String> {
+        Set(approvals.filter { !$0.isFinished }.flatMap { $0.items.map(\.id) })
     }
 
     var now: Date { services.clock.now }
@@ -68,8 +95,17 @@ public final class InboxModel {
         phase = .loading
         do {
             let fresh = try await relay.mailSnapshot(refresh: force)
-            snapshot = fresh
+            sorted = fresh
+            justLeftOut = []
             try? services.database.save(fresh, key: StoreKey.mail, now: now)
+            // Forget what left the inbox some other way, except where an account couldn't be read.
+            let present = Set(fresh.items.map(\.id))
+            let unread = Set(fresh.problems.map(\.source))
+            let keep = leftOut.filter { id in present.contains(id) || unread.contains(String(id.prefix { $0 != ":" })) }
+            if keep != leftOut {
+                leftOut = keep
+                saveLeftOut()
+            }
             phase = .loaded
         } catch {
             phase = .failed((error as? RelayError)?.description ?? String(describing: error))
@@ -89,11 +125,32 @@ public final class InboxModel {
         snapshot?.items(in: queue, account: account).count ?? 0
     }
 
+    /// The selected queue's rows, newest first. A row left out just now stays in place, dimmed.
     public var rows: [Row] {
-        guard let snapshot else { return [] }
+        Self.rows(queueItems.filter { !leftOut.contains($0.id) || justLeftOut.contains($0.id) })
+    }
+
+    /// Rows left out before, folded under "N left out" at the end of the queue.
+    public var leftOutRows: [Row] {
+        Self.rows(queueItems.filter { leftOut.contains($0.id) && !justLeftOut.contains($0.id) })
+    }
+
+    /// How many in the selected queue are left out.
+    public var leftOutCount: Int { queueItems.filter { leftOut.contains($0.id) }.count }
+
+    public func isLeftOut(_ row: Row) -> Bool { row.items.allSatisfy { leftOut.contains($0.id) } }
+
+    /// Everything the relay put in the selected queue, apart from batches on their way.
+    var queueItems: [TriagedMail] {
+        guard let sorted else { return [] }
+        let moving = self.moving
+        return sorted.items(in: queue, account: account).filter { !moving.contains($0.id) }
+    }
+
+    static func rows(_ items: [TriagedMail]) -> [Row] {
         var rows: [Row] = []
         var bundles: [String: Int] = [:]
-        for item in snapshot.items(in: queue, account: account) {
+        for item in items {
             if let bundle = item.bundle {
                 let key = item.item.account + ":" + bundle
                 if let index = bundles[key] {
@@ -136,19 +193,22 @@ public final class InboxModel {
         let count = self.count(queue)
         switch queue {
         case .reply: return count == 0 ? "Nothing to answer" : "Open the first"
-        case .jobHunt: return "File \(count)"
-        case .archive: return "Archive \(count)"
-        case .delete: return "Move \(count) to Trash"
+        case .jobHunt: return count == 0 ? "Nothing to file" : "File \(count)"
+        case .archive: return count == 0 ? "Nothing to archive" : "Archive \(count)"
+        case .delete: return count == 0 ? "Nothing to trash" : "Move \(count) to Trash"
         }
     }
 
     public var actionNote: String {
+        let note: String
         switch queue {
-        case .reply: return "Each reply sends only after you tap Send on it."
-        case .jobHunt: return "Labels each one job hunt and files it. Your routines scan picks them up."
-        case .archive: return "One batch per account. Undo for 10 seconds."
-        case .delete: return "Trash, not permanent. Gmail empties it after 30 days."
+        case .reply: note = "Each reply sends only after you tap Send on it."
+        case .jobHunt: note = "Labels each one job hunt and files it. Your routines scan picks them up."
+        case .archive: note = "One batch per account. Undo for 10 seconds."
+        case .delete: note = "Trash, not permanent. Gmail empties it after 30 days."
         }
+        let left = leftOutCount
+        return left == 0 ? note : note + " \(left) left out stay\(left == 1 ? "s" : "") in your inbox."
     }
 
     public var sweepLine: String {
@@ -158,43 +218,86 @@ public final class InboxModel {
             "Sorted \(snapshot.newCount) new message\(snapshot.newCount == 1 ? "" : "s") by \(fmt.time(snapshot.generatedAt)). Nothing moves until you approve a queue."
     }
 
+    // MARK: Leaving mail out
+
+    /// Leaves a row out of its queue (it stays in the inbox), or puts it back.
+    public func toggle(_ row: Row) {
+        let ids = Set(row.items.map(\.id))
+        if ids.isSubset(of: leftOut) {
+            leftOut.subtract(ids)
+            justLeftOut.subtract(ids)
+        } else {
+            leftOut.formUnion(ids)
+            justLeftOut.formUnion(ids)
+        }
+        saveLeftOut()
+    }
+
+    /// Leaves one message out from elsewhere ("Not for me" on Today).
+    public func leaveOut(_ id: String) {
+        guard !leftOut.contains(id) else { return }
+        leftOut.insert(id)
+        saveLeftOut()
+    }
+
+    func saveLeftOut() {
+        try? services.database.save(leftOut.sorted(), key: StoreKey.leftOut, now: now)
+        app?.plans.publishWidgets()
+        // The brief should skip them too; one upload for a run of taps.
+        upload?.cancel()
+        upload = Task { [services, weak app] in
+            await services.wait(2)
+            guard !Task.isCancelled else { return }
+            await app?.uploadContext()
+        }
+    }
+
     // MARK: Approving a queue
 
-    /// Starts the undo window for the selected queue (not Reply: replies go one at a time).
+    /// Starts the undo window for what's still checked in the selected queue (not Reply: replies go one at a time).
     public func approve() {
-        guard queue != .reply, approval == nil || approval?.isFinished == true else { return }
-        let count = self.count(queue)
-        guard count > 0 else { return }
-        let until = now.addingTimeInterval(Self.undoSeconds)
-        approval = Approval(queue: queue, account: account, count: count, state: .waiting(until: until))
-        let queue = queue
-        let account = account
+        guard queue != .reply else { return }
+        start(queue, snapshot?.items(in: queue, account: account) ?? [])
+    }
+
+    /// Archives what was left out of the selected queue: a "Reply" that isn't one needn't sit in the inbox.
+    public func archiveLeftOut() {
+        guard queue != .archive else { return }
+        start(.archive, queueItems.filter { leftOut.contains($0.id) })
+    }
+
+    func start(_ queue: MailQueue, _ items: [TriagedMail]) {
+        guard !items.isEmpty else { return }
+        approvals.removeAll { if case .done = $0.state { true } else { false } }
+        let id = nextApproval
+        nextApproval += 1
+        approvals.append(Approval(id: id, queue: queue, items: items, state: .waiting(until: now.addingTimeInterval(Self.undoSeconds))))
         Task { [services] in
             await services.wait(Self.undoSeconds)
-            await self.sendIfStillWaiting(queue, account)
+            await self.sendIfStillWaiting(id)
         }
     }
 
-    public func undo() {
-        guard case .waiting = approval?.state else { return }
-        approval = nil
+    public func undo(_ id: Approval.ID) {
+        guard let index = approvals.firstIndex(where: { $0.id == id }), case .waiting = approvals[index].state else { return }
+        approvals.remove(at: index)
     }
 
-    public func dismissApproval() {
-        if approval?.isFinished == true { approval = nil }
+    public func dismiss(_ id: Approval.ID) {
+        approvals.removeAll { $0.id == id && $0.isFinished }
     }
 
-    func sendIfStillWaiting(_ queue: MailQueue, _ account: String?) async {
-        guard let pending = approval, pending.queue == queue, pending.account == account, case .waiting = pending.state else { return }
-        guard let relay = app?.relay, let snapshot else {
-            approval?.state = .failed(RelayError.notConfigured.description)
+    func sendIfStillWaiting(_ id: Approval.ID) async {
+        guard let pending = approvals.first(where: { $0.id == id }), case .waiting = pending.state else { return }
+        guard let relay = app?.relay else {
+            update(id, .failed(RelayError.notConfigured.description))
             return
         }
-        approval?.state = .sending
-        let byAccount = Dictionary(grouping: snapshot.items(in: queue, account: account), by: \.item.account)
+        update(id, .sending)
+        let byAccount = Dictionary(grouping: pending.items, by: \.item.account)
         let actions = byAccount.sorted { $0.key < $1.key }.map { account, items in
             ApprovedAction(
-                kind: .modifyMail(account: account, messageIds: items.map(\.item.id), change: change(for: queue, account: account)),
+                kind: .modifyMail(account: account, messageIds: items.map(\.item.id), change: change(for: pending.queue, account: account)),
                 context: .inbox, approvedAt: now)
         }
         do {
@@ -205,17 +308,37 @@ public final class InboxModel {
                 guard case .modifyMail(let account, let ids, _) = action.kind else { continue }
                 if status.state == .done || status.state == .pending {
                     filed += ids.count
-                    self.snapshot = self.snapshot?.removing(account: account, ids: Set(ids))
+                    forget(account: account, ids: Set(ids))
                 } else {
                     failures.append("\(account): \(status.message ?? status.state.rawValue)")
                 }
             }
-            if let current = self.snapshot { try? services.database.save(current, key: StoreKey.mail, now: now) }
-            approval?.state = failures.isEmpty ? .done(doneLine(queue, filed)) : .failed(failures.joined(separator: "; "))
+            update(id, failures.isEmpty ? .done(doneLine(pending.queue, filed)) : .failed(failures.joined(separator: "; ")))
         } catch {
-            approval?.state = .failed((error as? RelayError)?.description ?? String(describing: error))
+            update(id, .failed((error as? RelayError)?.description ?? String(describing: error)))
         }
         app?.plans.publishWidgets()
+    }
+
+    func update(_ id: Approval.ID, _ state: Approval.State) {
+        guard let index = approvals.firstIndex(where: { $0.id == id }) else { return }
+        approvals[index].state = state
+    }
+
+    /// "Archiving 34 in 7 s", "Archiving 34…".
+    public func doing(_ approval: Approval) -> String {
+        let verb: String
+        switch approval.queue {
+        case .reply: verb = "Marking"
+        case .jobHunt: verb = "Filing"
+        case .archive: verb = "Archiving"
+        case .delete: verb = "Trashing"
+        }
+        switch approval.state {
+        case .waiting(let until): return "\(verb) \(approval.count) in \(max(1, Int(until.timeIntervalSince(now).rounded(.up)))) s"
+        case .sending: return "\(verb) \(approval.count)…"
+        case .done(let line), .failed(let line): return line
+        }
     }
 
     func change(for queue: MailQueue, account: String) -> MailChange {
@@ -246,8 +369,13 @@ public final class InboxModel {
 
     /// Takes messages filed from elsewhere (Signals' Mark read) out of the snapshot.
     func forget(account: String, ids: Set<String>) {
-        snapshot = snapshot?.removing(account: account, ids: ids)
-        if let snapshot { try? services.database.save(snapshot, key: StoreKey.mail, now: now) }
+        sorted = sorted?.removing(account: account, ids: ids)
+        if let sorted { try? services.database.save(sorted, key: StoreKey.mail, now: now) }
+        let gone = Set(ids.map { account + ":" + $0 })
+        if !leftOut.isDisjoint(with: gone) {
+            leftOut.subtract(gone)
+            try? services.database.save(leftOut.sorted(), key: StoreKey.leftOut, now: now)
+        }
     }
 
     /// The row's time: "8:12 AM" today, "Sun" this week, "Oct 3" before that.
@@ -270,4 +398,5 @@ extension InboxModel.Approval {
 
 extension StoreKey {
     public static let mail = "relay.mail"
+    public static let leftOut = "inbox.leftOut"
 }

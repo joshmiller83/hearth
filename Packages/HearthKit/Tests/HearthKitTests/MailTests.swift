@@ -133,6 +133,21 @@ struct MailTests {
         #expect(snapshot.kept().map(\.item.id).sorted() == ["m10", "m15"])
         #expect(snapshot.removing(account: "home", ids: ["m8", "m9"]).items(in: .archive, account: "home").count == 1)
     }
+
+    @Test func leftOutMailStaysInTheInboxAndOutOfTheBrief() throws {
+        let triaged = Fixtures.inbox.compactMap { MailRules.classify($0, rules: MailRules.defaults, now: Fixtures.now) }
+        let snapshot = MailSnapshot(generatedAt: Fixtures.now, accounts: ["home", "work"], items: triaged)
+        let invite = try #require(snapshot.items(in: .reply).first)
+        let security = try #require(snapshot.kept().first)
+        let left = snapshot.leavingOut([invite.id, security.id])
+        #expect(left.items(in: .reply).count == snapshot.items(in: .reply).count - 1)
+        #expect(left.kept().first { $0.id == invite.id }?.tag == "Left out")
+        // Mail that was already kept keeps its own tag.
+        #expect(left.kept().first { $0.id == security.id }?.tag == security.tag)
+        let agenda = Agenda(events: [], household: Fixtures.household)
+        let input = BriefInput.gather(agenda: agenda, mail: left, now: Fixtures.now)
+        #expect(!input.needsYou.contains { $0.id == invite.id })
+    }
 }
 
 @Suite("Morning brief")
