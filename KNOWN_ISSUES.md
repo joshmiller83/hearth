@@ -2,6 +2,24 @@
 
 What each milestone left for later. Newest first.
 
+## Texts (iMessage and SMS)
+
+- Read only, the last 60 days, refreshed every two minutes while the Mac is
+  logged in. Hearth never sends a text: Open in Messages hands off for one-on-one
+  conversations; groups have no link to open.
+- "Waiting on you" is a plain rule: a question mark in their latest run of
+  messages within three days, from a person (not a short code or a no-reply
+  address). In a group it also has to say the owner's name. Not for me lasts
+  until they write again.
+- Names come from Contacts on the phone, only if Hearth already has Contacts
+  access; otherwise texts show phone numbers.
+- Photos and files are noted, not read. Reactions, edits, unsent messages and
+  replies-in-thread structure are left out.
+- The morning brief doesn't see texts (the relay's Claude never does), and the
+  StandBy widgets don't count them yet.
+- Other chat apps come later; the shapes (`ChatThread`, `ChatMessage`,
+  `ChatExport`) carry a `source` for them.
+
 ## Leaving mail out, and the queue button
 
 - Leaving a message out is remembered on the phone and sent to the relay with

@@ -72,6 +72,7 @@ public final class AppModel {
     public let people: PeopleModel
     public let town: TownModel
     public let facebook: FacebookModel
+    public let chats: ChatsModel
 
     public init(services: AppServices) {
         self.services = services
@@ -88,6 +89,7 @@ public final class AppModel {
         people = PeopleModel(services: services)
         town = TownModel(services: services)
         facebook = FacebookModel(services: services)
+        chats = ChatsModel(services: services)
         plans.app = self
         sources.app = self
         capture.app = self
@@ -97,6 +99,7 @@ public final class AppModel {
         people.app = self
         town.app = self
         facebook.app = self
+        chats.app = self
     }
 
     public var now: Date { services.clock.now }
@@ -185,6 +188,7 @@ public final class AppModel {
         await inbox.refresh(force: force)
         await signals.refresh()
         await town.refresh()
+        await chats.refresh()
         await refreshBrief()
         plans.publishWidgets()
     }

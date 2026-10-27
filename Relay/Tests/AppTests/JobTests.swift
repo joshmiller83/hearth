@@ -93,6 +93,19 @@ struct DependencyGraphTests {
         #expect(!line.contains("Executor"))
     }
 
+    /// Only `hearth-messages` reads the Messages database; the relay serves its export.
+    @Test func theRelayNeverOpensMessagesItself() throws {
+        for target in ["App", "RelayCore", "Jobs", "Executor", "Run"] {
+            let folder = Self.relayRoot.appendingPathComponent("Sources/\(target)")
+            let files = FileManager.default.enumerator(atPath: folder.path)?.compactMap { $0 as? String }.filter { $0.hasSuffix(".swift") }
+            for file in files ?? [] {
+                let text = try String(contentsOf: folder.appendingPathComponent(file), encoding: .utf8)
+                #expect(!text.contains("import ChatReader"), "\(target)/\(file) imports ChatReader")
+                #expect(!text.contains("chat.db"), "\(target)/\(file) names chat.db")
+            }
+        }
+    }
+
     @Test func jobSourcesNeverNameAWrite() throws {
         let folder = Self.relayRoot.appendingPathComponent("Sources/Jobs")
         let files = try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasSuffix(".swift") }

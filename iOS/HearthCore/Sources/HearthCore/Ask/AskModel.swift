@@ -115,7 +115,7 @@ public final class AskModel {
         let started = now
         let request = AskPrompt.request(
             transcript: transcript + [AskPrompt.turn(question: question, owed: results)], household: household, accounts: accounts,
-            now: started)
+            now: started, texts: app?.chats.available ?? false)
         var paragraphBreak = false
         do {
             for try await event in ToolLoop(client: claude).run(request, toolbox: toolbox(), terminal: [AskTool.proposeActions]) {
@@ -170,7 +170,8 @@ public final class AskModel {
         let cached = app?.plans.googleEvents ?? []
         let readsApple = calendar.access() == .full
         return AskToolbox(
-            tools: AskPrompt.tools(accounts: accounts), relay: relay, people: services.people, household: household, now: now,
+            tools: AskPrompt.tools(accounts: accounts, texts: app?.chats.available ?? false), relay: relay, people: services.people,
+            household: household, now: now,
             events: { from, to in
                 var google = cached.filter { $0.end > from && $0.start < to }
                 if let relay, let fresh = try? await relay.events(from: from, to: to, refresh: false) { google = fresh.events }
@@ -320,6 +321,29 @@ struct AskToolbox: ClaudeToolbox {
                 return AskFormat.people(try await people.find(name), query: name, now: now, fmt: fmt)
             } catch {
                 return Self.failure(error, trace: name)
+            }
+
+        case AskTool.chatsSearch:
+            let query = input["query"]?.stringValue ?? ""
+            let person = (input["person"]?.stringValue ?? "").trimmingCharacters(in: .whitespaces)
+            let trace = [query, person].filter { !$0.isEmpty }.joined(separator: " · ")
+            guard let relay else { return Self.failure(RelayError.notConfigured, trace: trace) }
+            var handles: [String] = []
+            if !person.isEmpty {
+                handles = await people.handles(for: person)
+                guard !handles.isEmpty else {
+                    return ToolOutcome(
+                        text: "No contact with a phone number or email matches “\(person)”. Try their full name, or search without one.",
+                        trace: "\(person) · not found")
+                }
+            }
+            let days = min(max(input["days"]?.intValue ?? 30, 1), 60)
+            do {
+                let found = try await relay.searchChats(ChatSearchRequest(query: query, handles: handles, days: days, limit: 20))
+                let names = await people.names(for: found.threads.flatMap(\.handles) + found.messages.compactMap(\.sender))
+                return AskFormat.chats(found, names: names, query: query, person: person, fmt: fmt)
+            } catch {
+                return Self.failure(error, trace: trace)
             }
 
         case AskTool.proposeActions:

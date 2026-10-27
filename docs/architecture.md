@@ -14,6 +14,10 @@
 3. **Push** through APNs, with quiet hours (family and urgent get through).
 4. **The executor** for approved actions, including scheduled sends: Gmail's
    API can't schedule a send, so the relay holds the action until `notBefore`.
+5. **Texts.** iOS lets no app read Messages, but the Mac has them. A separate
+   helper, `hearth-messages`, runs every two minutes as a LaunchAgent, opens the
+   Messages database read-only (the only Hearth process with Full Disk Access)
+   and leaves an export the relay serves. Nothing sends a text.
 
 **The phone** does everything else: every screen with an offline cache, EventKit
 (iCloud Family, Birthdays) and Contacts, every interactive Claude feature
@@ -29,6 +33,7 @@ notifications, the share extension and the StandBy widgets.
 | Surprise guard | `SurpriseGuard`: surprise plans only on the owner's own accounts |
 | Busy-only partner calendar | `BusyOnly.redact`, applied on the relay before events leave it |
 | Quiet hours | `QuietHours` |
+| Texts are read only, and only the helper opens Messages | `ChatDatabase` opens with `mode=ro`; no route or job imports `ChatReader` (`DependencyGraphTests`); the relay's Claude never gets texts |
 | No secrets in git | keys in the iOS Keychain and `~/HearthRelay/secrets`; household details in `~/HearthRelay/household.json` |
 
 ## Relay API
@@ -47,6 +52,7 @@ except `GET /v1/health`, which without the key answers only `{"status":"ok"}`.
 | `POST /v1/tools/gmail_search` | M5 | Ask's mail search, read-only (any other tool name is a 404) |
 | `GET /v1/signals[?refresh=1]` | M6 | The weather the relay watches (NWS alerts, the night's low); the phone adds mail-derived signals |
 | `GET|POST /v1/feeds`, `DELETE /v1/feeds/:id`, `POST /v1/feeds/preview` | M8 | Event feeds and their kept events; a feed read once for the chat (public https only) |
+| `GET /v1/chats`, `GET /v1/chats/thread?id=`, `POST /v1/tools/chats_search` | Texts | Recent conversations and what's waiting on the owner; one conversation; Ask's text search. All from `hearth-messages`' export |
 
 ## Claude
 

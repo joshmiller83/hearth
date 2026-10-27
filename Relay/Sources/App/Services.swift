@@ -39,6 +39,8 @@ public struct RelayServices: Sendable {
     public var apns: APNsClient?
     /// Plain HTTPS for public sources.
     public var http: any HTTPTransport
+    /// Texts, as `hearth-messages` exported them.
+    public var chats: ChatStore
 }
 
 extension Application {
