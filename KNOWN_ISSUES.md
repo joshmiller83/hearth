@@ -8,9 +8,11 @@ What each milestone left for later. Newest first.
   logged in. Hearth never sends a text: Open in Messages hands off for one-on-one
   conversations; groups have no link to open.
 - "Waiting on you" is a plain rule: a question mark in their latest run of
-  messages within three days, from a person (not a short code or a no-reply
-  address). In a group it also has to say the owner's name. Not for me lasts
-  until they write again.
+  messages within three days, from someone you know: a contact (when Hearth can
+  read Contacts) or someone you've texted in the last 60 days, in any
+  conversation. Short codes, no-reply addresses and numbers you've never texted
+  don't count, so marketing texts stay off Today. In a group it also has to say
+  the owner's name. Not for me lasts until they write again.
 - Names come from Contacts on the phone, only if Hearth already has Contacts
   access; otherwise texts show phone numbers.
 - Photos and files are noted, not read. Reactions, edits, unsent messages and

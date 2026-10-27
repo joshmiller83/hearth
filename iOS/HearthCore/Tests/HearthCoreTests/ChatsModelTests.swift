@@ -20,12 +20,23 @@ struct ChatsModelTests {
         #expect(chats.available)
         #expect(chats.waiting.map(\.thread.id) == ["mom"])
         let titles = chats.threads.map { chats.title($0.thread) }
-        #expect(titles == ["Carol Rivera", "72975", "Rivera cousins", "Robin Rivera", "Coach Martinez"])
+        #expect(titles == ["Carol Rivera", "72975", "Rivera cousins", "+15550100009", "Robin Rivera", "Coach Martinez"])
         let cousins = try #require(chats.threads.first { $0.thread.id == "cousins" })
         #expect(chats.preview(cousins) == "Jo: We have six folding ones")
         #expect(chats.messagesURL(cousins.thread) == nil)
         #expect(chats.messagesURL(try #require(chats.threads.first).thread)?.absoluteString == "sms:+15550100001")
-        #expect(chats.statusLine.hasPrefix("9 texts in 5 conversations"))
+        #expect(chats.statusLine.hasPrefix("10 texts in 6 conversations"))
+    }
+
+    @Test func aStrangersQuestionWaitsOnlyOnceContactsKnowsThem() async throws {
+        let app = await loaded()
+        #expect(TodaySummary.make(app: app).needsYou.filter { $0.kind == .text }.map(\.id) == ["mom#m3"])
+        var services = AppServices.fixtures(waits: false)
+        services.people = ContactsWithTheStore()
+        let known = AppModel(services: services)
+        await known.refreshAll()
+        #expect(known.chats.waiting.map(\.thread.id) == ["mom", "store"])
+        #expect(TodaySummary.make(app: known).needsYou.filter { $0.kind == .text }.map(\.id) == ["mom#m3", "store#s1"])
     }
 
     @Test func notForMeLastsUntilTheyWriteAgain() async throws {
@@ -63,5 +74,16 @@ struct ChatsModelTests {
         let mom = try #require(app.chats.waiting.first)
         await app.chats.capture(mom.unanswered, in: mom.thread)
         #expect(app.capture.noteText.contains("Carol Rivera: Are you all coming Sunday? I'm making the roast."))
+    }
+}
+
+/// The household's contacts, with the store that texted saved among them.
+struct ContactsWithTheStore: PeopleDirectory {
+    func find(_ query: String) async throws -> [PersonCard] { try await FixturePeople().find(query) }
+
+    func names(for handles: [String]) async -> [String: String] {
+        var names = await FixturePeople().names(for: handles)
+        if handles.map(ChatHandle.normalize).contains("5550100009") { names["5550100009"] = "Maple Grove Hardware" }
+        return names
     }
 }

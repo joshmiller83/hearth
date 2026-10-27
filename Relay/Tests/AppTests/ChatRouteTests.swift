@@ -98,12 +98,14 @@ struct ChatRouteTests {
         let dir = try Self.directory()
         try ChatExportWriter.write(Fixtures.chats, to: dir)
         try ChatExportWriter.write(
-            ChatSourceStatus(state: .ok, checkedAt: Fixtures.now, exportedAt: Fixtures.now, threads: 5, messages: 9), to: dir)
+            ChatSourceStatus(state: .ok, checkedAt: Fixtures.now, exportedAt: Fixtures.now, threads: 6, messages: 10), to: dir)
         try await withTestApp(adjust: { $0.chatsDirectory = dir }) { t in
             let key = try await t.key()
             let list = try await t.app.client2.send(.GET, RelayPath.chats, key: key).decode(ChatsResponse.self)
             #expect(list.status.state == .ok)
             #expect(list.threads.filter(\.waiting).map(\.thread.id) == ["mom"])
+            // The store's question goes to the phone too, which knows whether Contacts has it.
+            #expect(list.threads.filter(\.asked).map(\.thread.id) == ["mom", "store"])
             let thread = try await t.app.client2.send(.GET, RelayPath.chatThread + "?id=mom", key: key).decode(ChatThreadResponse.self)
             #expect(thread.messages.map(\.id) == ["m1", "m2", "m3"])
             let missing = try await t.app.client2.send(.GET, RelayPath.chatThread + "?id=nobody", key: key)

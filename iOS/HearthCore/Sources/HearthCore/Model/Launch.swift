@@ -92,8 +92,8 @@ public actor FixtureRelay: RelayAPI {
     }
 
     static let chatStatus = ChatSourceStatus(
-        state: .ok, checkedAt: Fixtures.now.addingTimeInterval(-60), exportedAt: Fixtures.now.addingTimeInterval(-60), threads: 5,
-        messages: 9)
+        state: .ok, checkedAt: Fixtures.now.addingTimeInterval(-60), exportedAt: Fixtures.now.addingTimeInterval(-60), threads: 6,
+        messages: 10)
 
     public func chats() async throws -> ChatsResponse {
         ChatsResponse(status: Self.chatStatus, threads: Chats.summaries(Fixtures.chats, ownerName: "Sam", now: Fixtures.now))

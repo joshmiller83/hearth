@@ -114,14 +114,19 @@ public struct ChatSummary: Codable, Hashable, Sendable, Identifiable {
     public var last: ChatMessage
     /// Their messages since the owner last wrote, oldest first (up to five).
     public var unanswered: [ChatMessage]
-    /// They asked something and the owner hasn't answered (`Chats.isWaiting`).
+    /// They asked something the owner hasn't answered, and the owner has texted them in the
+    /// export's window: a stranger's question (an offer, a wrong number) waits on no one.
     public var waiting: Bool
+    /// They asked (`Chats.asks`), whoever they are. The phone counts these as waiting too
+    /// when the sender is in its Contacts.
+    public var asked: Bool
 
-    public init(thread: ChatThread, last: ChatMessage, unanswered: [ChatMessage], waiting: Bool) {
+    public init(thread: ChatThread, last: ChatMessage, unanswered: [ChatMessage], waiting: Bool, asked: Bool) {
         self.thread = thread
         self.last = last
         self.unanswered = unanswered
         self.waiting = waiting
+        self.asked = asked
     }
 
     public var id: String { thread.id }
@@ -190,22 +195,28 @@ public enum Chats {
     /// Each conversation's last message and what's waiting, most recent first.
     public static func summaries(_ export: ChatExport, ownerName: String, now: Date, limit: Int = 40) -> [ChatSummary] {
         let byThread = Dictionary(grouping: export.messages, by: \.threadId)
+        // Everyone the owner has written to in the window, in any conversation: Messages
+        // keeps one person's SMS and iMessage apart, and a group counts too.
+        let texted = Set(
+            export.threads.filter { byThread[$0.id]?.contains(where: \.fromMe) == true }.flatMap(\.handles).map(ChatHandle.normalize))
         var out: [ChatSummary] = []
         for thread in export.threads {
             guard let messages = byThread[thread.id]?.sorted(by: { $0.date < $1.date }), let last = messages.last else { continue }
             let unanswered = Array(messages.reversed().prefix { !$0.fromMe }.reversed())
+            let asked = asks(thread: thread, unanswered: unanswered, ownerName: ownerName, now: now)
+            let known = thread.handles.contains { texted.contains(ChatHandle.normalize($0)) }
             out.append(
                 ChatSummary(
-                    thread: thread, last: last, unanswered: Array(unanswered.suffix(5)),
-                    waiting: isWaiting(thread: thread, unanswered: unanswered, ownerName: ownerName, now: now)))
+                    thread: thread, last: last, unanswered: Array(unanswered.suffix(5)), waiting: asked && known, asked: asked))
         }
         return Array(out.sorted { $0.last.date > $1.last.date }.prefix(limit))
     }
 
     /// They asked and the owner hasn't written since: a question in their latest run of
     /// messages, in the last three days, from a person (not a short code or a no-reply
-    /// address). In a group, only when it also names the owner.
-    public static func isWaiting(thread: ChatThread, unanswered: [ChatMessage], ownerName: String, now: Date) -> Bool {
+    /// address). In a group, only when it also names the owner. It waits on the owner
+    /// only when they know the sender (`summaries`, and Contacts on the phone).
+    public static func asks(thread: ChatThread, unanswered: [ChatMessage], ownerName: String, now: Date) -> Bool {
         guard let newest = unanswered.last, now.timeIntervalSince(newest.date) < waitingWindow else { return false }
         guard thread.handles.contains(where: ChatHandle.isPerson) else { return false }
         let texts = unanswered.map { $0.text.lowercased() }
