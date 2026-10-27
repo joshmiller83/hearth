@@ -187,6 +187,8 @@ public struct MailSnapshot: Codable, Hashable, Sendable {
 extension TriagedMail {
     /// The tag on mail the owner left out of its queue.
     public static let leftOutTag = "Left out"
+    /// Why mail no rule caught is unsorted: the relay has no Claude key of its own.
+    public static let noKeyReason = "No Claude key on the relay"
 }
 
 /// `GET /v1/mail/threads/:account/:id`: a thread's messages with their text.

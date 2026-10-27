@@ -44,6 +44,20 @@ struct InboxModelTests {
         #expect(inbox.keptNote == "Kept in your inbox: 1 github, 1 security. Those never move without you.")
     }
 
+    @Test func unsortedMailIsWaitingNotKept() async throws {
+        let app = await loaded()
+        let inbox = app.inbox
+        #expect(inbox.unsortedNote == nil)
+        let stray = MailItem(
+            id: "u1", threadId: "u1", account: "home", from: "Someone <someone@example.com>", subject: "Hello", date: Fixtures.now)
+        inbox.sorted?.items.append(
+            TriagedMail(item: stray, queue: nil, tag: "Needs a look", reason: TriagedMail.noKeyReason, sortedBy: .unsorted))
+        #expect(
+            inbox.unsortedNote
+                == "1 message no rule caught waits for the relay's own Claude key to sort it. Until then it stays in your inbox.")
+        #expect(inbox.keptNote == "Kept in your inbox: 1 github, 1 security. Those never move without you.")
+    }
+
     @Test func approvingAQueueSendsOneBatchPerAccount() async throws {
         let app = await loaded()
         let inbox = app.inbox

@@ -49,7 +49,7 @@ public final class InboxModel {
     weak var app: AppModel?
 
     /// The relay's sort, as it last came.
-    private(set) var sorted: MailSnapshot?
+    var sorted: MailSnapshot?
     public private(set) var phase: Phase = .idle
     public private(set) var approvals: [Approval] = []
     private var nextApproval = 1
@@ -166,11 +166,24 @@ public final class InboxModel {
 
     /// "Kept in your inbox: 33 security alerts, 2 GitHub reviews. Those never auto-archive."
     public var keptNote: String? {
-        guard let kept = snapshot?.kept(account: account), !kept.isEmpty else { return nil }
+        guard let kept = snapshot?.kept(account: account).filter({ $0.sortedBy != .unsorted }), !kept.isEmpty else { return nil }
         // Most first; ties by name, so the line doesn't reshuffle between redraws.
         let groups = Dictionary(grouping: kept, by: \.tag).sorted { ($1.value.count, $0.key) < ($0.value.count, $1.key) }
         let parts = groups.map { tag, items in "\(items.count) \(tag.lowercased())" }
         return "Kept in your inbox: " + parts.joined(separator: ", ") + ". Those never move without you."
+    }
+
+    /// Mail no rule caught and nothing has sorted yet. It isn't "kept": it's waiting.
+    public var unsortedNote: String? {
+        let unsorted = snapshot?.kept(account: account).filter { $0.sortedBy == .unsorted } ?? []
+        guard !unsorted.isEmpty else { return nil }
+        let count = unsorted.count
+        let messages = "\(count) message\(count == 1 ? "" : "s") no rule caught"
+        if unsorted.contains(where: { $0.reason == TriagedMail.noKeyReason }) {
+            return
+                "\(messages) \(count == 1 ? "waits" : "wait") for the relay's own Claude key to sort \(count == 1 ? "it" : "them"). Until then \(count == 1 ? "it stays" : "they stay") in your inbox."
+        }
+        return "\(messages) \(count == 1 ? "isn't" : "aren't") sorted yet. The next sweep tries again."
     }
 
     public var headline: String {

@@ -123,7 +123,7 @@ public struct MailSweepJob: RelayJob {
         guard !items.isEmpty else { return [] }
         guard let claude = context.claude else {
             return items.map {
-                TriagedMail(item: $0, queue: nil, tag: "Needs a look", reason: "No Claude key on the relay", sortedBy: .unsorted)
+                TriagedMail(item: $0, queue: nil, tag: "Needs a look", reason: TriagedMail.noKeyReason, sortedBy: .unsorted)
             }
         }
         var out: [TriagedMail] = []

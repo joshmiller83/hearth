@@ -18,6 +18,7 @@ struct InboxView: View {
                 Text(inbox.sweepLine).font(.custom(Typeface.regular, size: 14, relativeTo: .subheadline)).foregroundStyle(Theme.muted)
                     .padding(.horizontal, 4)
                 if case .failed(let message) = inbox.phase { Notice(text: message) }
+                if let unsorted = inbox.unsortedNote { Notice(symbol: "tray", text: unsorted, tint: .ice) }
                 QueueTiles()
                 QueueList(opened: $opened)
             }
