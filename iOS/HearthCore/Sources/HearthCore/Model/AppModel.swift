@@ -69,6 +69,7 @@ public final class AppModel {
     public let inbox: InboxModel
     public let ask: AskModel
     public let signals: SignalsModel
+    public let people: PeopleModel
 
     public init(services: AppServices) {
         self.services = services
@@ -82,12 +83,14 @@ public final class AppModel {
         inbox = InboxModel(services: services)
         ask = AskModel(services: services)
         signals = SignalsModel(services: services)
+        people = PeopleModel(services: services)
         plans.app = self
         sources.app = self
         capture.app = self
         inbox.app = self
         ask.app = self
         signals.app = self
+        people.app = self
     }
 
     public var now: Date { services.clock.now }

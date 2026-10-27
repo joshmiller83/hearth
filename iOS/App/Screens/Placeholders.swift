@@ -28,17 +28,6 @@ struct ComingSoon: View {
     }
 }
 
-struct PeoplePlaceholder: View {
-    var body: some View {
-        ComingSoon(
-            title: "People", milestone: "M7", symbol: "heart",
-            lines: [
-                "Your inner circle from Contacts, birthdays and anniversaries coming up, and small ways to show up.",
-                "A quiet planner for surprises that stays off the shared calendars until you reveal it.",
-            ])
-    }
-}
-
 struct AroundTownPlaceholder: View {
     var body: some View {
         Card(padding: EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)) {

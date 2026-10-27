@@ -303,7 +303,8 @@ public enum Signals {
         return first + " " + second
     }
 
-    static func spelled(_ n: Int) -> String {
+    /// "Nine", for counts that start a sentence.
+    public static func spelled(_ n: Int) -> String {
         let words = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"]
         return n < words.count ? words[n] : String(n)
     }

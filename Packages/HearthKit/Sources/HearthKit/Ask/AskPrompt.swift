@@ -51,7 +51,6 @@ public enum AskPrompt {
         let all = accounts.isEmpty ? ["all"] : accounts + ["all"]
         let one = accounts.isEmpty ? ["all"] : accounts
         let date: JSONValue = ["type": "string", "format": "date", "description": "YYYY-MM-DD"]
-        let blank = " Empty string when it doesn't apply."
         return [
             ClaudeTool(
                 name: AskTool.gmailSearch,
@@ -101,24 +100,26 @@ public enum AskPrompt {
                     Put steps in front of the owner for approval, then end your turn. They pick which to run; nothing \
                     happens before that. Call it at most once per turn, last.
                     """,
-                inputSchema: Schema.object([
-                    "actions": Schema.array(
-                        Schema.object([
-                            "kind": Schema.enumeration(AskProposal.Kind.allCases.map(\.rawValue)),
-                            "label": Schema.string("One short line they check: \"Remind me Thursday, 8 AM: mail the card\"."),
-                            "detail": Schema.string("Where it lands or what to know: \"Lands on your phone, not a shared calendar\"."),
-                            "done": Schema.string("How it reads once done: \"Thursday reminder set\"."),
-                            "title": Schema.string("remind, hold, event: the title." + blank),
-                            "start": Schema.string("remind: when. hold, event: the start. YYYY-MM-DDTHH:MM." + blank),
-                            "end": Schema.string("hold, event: the end, YYYY-MM-DDTHH:MM." + blank),
-                            "account": Schema.string("reply: the thread's account. hold: empty for the owner's main calendar." + blank),
-                            "message_id": Schema.string("reply: the id of the message being answered." + blank),
-                            "text": Schema.string("reply: the whole reply. note: the text to copy. remind: notes, if any." + blank),
-                            "url": Schema.string("link: an https URL." + blank),
-                        ]),
-                        "One to six steps.")
-                ])),
+                inputSchema: Schema.object(["actions": Schema.array(actionSchema, "One to six steps.")])),
         ]
+    }
+
+    /// One step Hearth can take, as Claude writes it (propose_actions, People's ideas).
+    public static var actionSchema: JSONValue {
+        let blank = " Empty string when it doesn't apply."
+        return Schema.object([
+            "kind": Schema.enumeration(AskProposal.Kind.allCases.map(\.rawValue)),
+            "label": Schema.string("One short line they check: \"Remind me Thursday, 8 AM: mail the card\"."),
+            "detail": Schema.string("Where it lands or what to know: \"Lands on your phone, not a shared calendar\"."),
+            "done": Schema.string("How it reads once done: \"Thursday reminder set\"."),
+            "title": Schema.string("remind, hold, event: the title." + blank),
+            "start": Schema.string("remind: when. hold, event: the start. YYYY-MM-DDTHH:MM." + blank),
+            "end": Schema.string("hold, event: the end, YYYY-MM-DDTHH:MM." + blank),
+            "account": Schema.string("reply: the thread's account. hold: empty for the owner's main calendar." + blank),
+            "message_id": Schema.string("reply: the id of the message being answered." + blank),
+            "text": Schema.string("reply: the whole reply. note: the text to copy. remind: notes, if any." + blank),
+            "url": Schema.string("link: an https URL." + blank),
+        ])
     }
 
     /// The next request of a conversation. `transcript` ends with the owner's

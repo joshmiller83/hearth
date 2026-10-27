@@ -2,6 +2,25 @@
 
 What each milestone left for later. Newest first.
 
+## M7 People & the partner planner
+
+- The inner circle lives on the phone. Add people by searching Contacts; remove
+  them with a long press. Birthdays and anniversaries come from each contact
+  card, plus anything on the Birthdays calendar.
+- Ideas ask Claude once a day (a few cents), from one mail search across the
+  circle's addresses over the last 45 days and your free time. Pull to refresh
+  asks again.
+- The planner holds the evening on your main account. With the surprise guard
+  on, the hold is private and carries Hearth's surprise marker, so StandBy shows
+  it as "Private". Your partner's calendars are never written.
+- Flowers and the card are ticked by hand; Hearth doesn't order anything yet.
+- "Things they love" is only what you add: contact notes need an entitlement
+  Apple grants case by case.
+- "A little thing this week" shows when your partner has three or more things on
+  one day.
+- Life events like "started a new job" appear only as Claude's ideas, not as
+  their own Coming up rows.
+
 ## M6 Signals
 
 - Signals come from the mail sweep: GitHub notification emails (so "via home"),

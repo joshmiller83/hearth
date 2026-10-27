@@ -44,7 +44,7 @@ struct RootView: View {
                 NavigationStack { PlansView(showCapture: $showCapture) }
             }
             Tab("People", systemImage: "heart", value: AppTab.people) {
-                NavigationStack { PeoplePlaceholder() }
+                NavigationStack { PeopleView(tab: $tab) }
             }
             Tab("Ask", systemImage: "ellipsis.bubble", value: AppTab.ask) {
                 NavigationStack { AskView() }

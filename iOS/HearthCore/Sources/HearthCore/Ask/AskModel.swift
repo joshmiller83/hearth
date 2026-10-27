@@ -36,16 +36,6 @@ public final class AskModel {
         case failed(String)
     }
 
-    enum Executed: Equatable, Sendable {
-        case reminder(String)
-        case event(String)
-        case hold(account: String, calendarId: String, eventId: String)
-        /// Waiting at the relay (a reply's 30 seconds): cancelling stops it.
-        case pending(actionId: String, label: String)
-        /// Done at the relay and not reversible.
-        case sent(label: String)
-    }
-
     public struct Turn: Identifiable, Equatable, Sendable {
         public let id: Int
         public var question: String
@@ -63,7 +53,7 @@ public final class AskModel {
         public var undoProblem: String?
         /// What became of the proposals, for Claude.
         var outcome: String?
-        var executed: [Executed] = []
+        var receipts: [ProposalRunner.Receipt] = []
 
         public var chosenCount: Int { proposals.filter { selected.contains($0.id) }.count }
     }
@@ -205,106 +195,22 @@ public final class AskModel {
         guard !chosen.isEmpty else { return }
         turns[i].run = .running
         turns[i].undoProblem = nil
-        let approvedAt = now
-        var executed: [Executed] = []
-        var ran: Set<String> = []
-        var failed: [(AskProposal, String)] = []
-
-        var relayActions: [(AskProposal, ApprovedAction)] = []
-        for p in chosen {
-            switch p.kind {
-            case .hold:
-                guard let start = p.start, let end = p.end else { continue }
-                let kind = ActionKind.createHold(account: p.account, title: p.title, start: start, end: end, notes: "Held by Hearth.")
-                relayActions.append((p, ApprovedAction(kind: kind, context: .ask, approvedAt: approvedAt)))
-            case .reply:
-                let kind = ActionKind.reply(account: p.account, messageId: p.messageId, body: p.text, replyAll: false)
-                relayActions.append(
-                    (
-                        p,
-                        ApprovedAction(
-                            kind: kind, context: .ask, approvedAt: approvedAt, notBefore: approvedAt.addingTimeInterval(Self.replyDelay))
-                    ))
-            default:
-                break
-            }
-        }
-        if !relayActions.isEmpty {
-            do {
-                guard let relay = app?.relay else { throw RelayError.notConfigured }
-                let statuses = try await relay.submit(relayActions.map(\.1))
-                for (p, action) in relayActions {
-                    let status = statuses.first { $0.id == action.id }
-                    switch status?.state {
-                    case .done:
-                        ran.insert(p.id)
-                        if case .createHold = action.kind, let eventId = status?.result?["event_id"]?.stringValue, !eventId.isEmpty {
-                            let calendarId = status?.result?["calendar_id"]?.stringValue ?? "primary"
-                            executed.append(.hold(account: p.account, calendarId: calendarId, eventId: eventId))
-                        } else {
-                            executed.append(.sent(label: p.label))
-                        }
-                    case .pending:
-                        ran.insert(p.id)
-                        executed.append(.pending(actionId: action.id, label: p.label))
-                    default:
-                        failed.append((p, status?.message ?? "The relay didn't run it."))
-                    }
-                }
-            } catch {
-                failed += relayActions.map { ($0.0, Self.describe(error)) }
-            }
-        }
-
-        let calendar = services.calendar
-        for p in chosen {
-            do {
-                switch p.kind {
-                case .remind:
-                    guard let due = p.start else { continue }
-                    if calendar.remindersAccess() != .full, await calendar.requestRemindersAccess() != .full {
-                        throw CalendarWriteError.noAccess
-                    }
-                    let ids = try await calendar.add([ReminderDraft(title: p.title, due: due, notes: p.text.isEmpty ? nil : p.text)])
-                    executed += ids.map { .reminder($0) }
-                    ran.insert(p.id)
-                case .event:
-                    guard let start = p.start, let end = p.end else { continue }
-                    if calendar.access() != .full, await calendar.requestAccess() != .full { throw CalendarWriteError.noAccess }
-                    let family = household.familyCalendar.lowercased()
-                    guard
-                        let target = await calendar.calendars().first(where: { $0.title.lowercased() == family && $0.allowsModifications })
-                    else { throw CalendarWriteError.noCalendar(household.familyCalendar) }
-                    let ids = try await calendar.add(
-                        [EventDraft(title: p.title, start: start, end: end, notes: "Added by Hearth.")], to: target.id)
-                    executed += ids.map { .event($0) }
-                    ran.insert(p.id)
-                case .note, .link:
-                    ran.insert(p.id)
-                case .hold, .reply:
-                    break
-                }
-            } catch {
-                failed.append((p, Self.describe(error)))
-            }
-        }
-
-        let done = chosen.filter { ran.contains($0.id) }
-        turns[i].executed = executed
-        turns[i].notes = done.filter { $0.kind == .note }
-        turns[i].links = done.filter { $0.kind == .link }
+        let outcome = await runner.run(chosen, now: now)
+        turns[i].receipts = outcome.receipts
+        turns[i].notes = outcome.ran.filter { $0.kind == .note }
+        turns[i].links = outcome.ran.filter { $0.kind == .link }
         turns[i].outcome = AskOutcome.text(
-            ran: done, skipped: turn.proposals.filter { !turn.selected.contains($0.id) }, failed: failed, undone: false)
-        if done.isEmpty {
-            turns[i].run = .failed(failed.map { "\($0.0.label): \($0.1)" }.joined(separator: " "))
+            ran: outcome.ran, skipped: turn.proposals.filter { !turn.selected.contains($0.id) }, failed: outcome.failed, undone: false)
+        if outcome.ran.isEmpty {
+            turns[i].run = .failed(outcome.failed.map { "\($0.0.label): \($0.1)" }.joined(separator: " "))
         } else {
-            var summary = Self.sentence(done.map(\.done))
-            if !failed.isEmpty { summary += " Didn't work: " + failed.map { "\($0.0.label) (\($0.1))" }.joined(separator: "; ") + "." }
+            var summary = ProposalRunner.sentence(outcome.ran.map(\.done))
+            if !outcome.failed.isEmpty {
+                summary += " Didn't work: " + outcome.failed.map { "\($0.0.label) (\($0.1))" }.joined(separator: "; ") + "."
+            }
             turns[i].run = .done(summary)
         }
-        if executed.contains(where: { if case .hold = $0 { true } else if case .event = $0 { true } else { false } }) {
-            await app?.plans.refresh()
-        }
+        if ProposalRunner.touchesCalendars(outcome.receipts) { await app?.plans.refresh() }
     }
 
     /// Takes back what can be: reminders, events and holds, and replies still
@@ -312,47 +218,20 @@ public final class AskModel {
     public func undo(_ turnId: Int) async {
         guard let i = turns.firstIndex(where: { $0.id == turnId }), case .done = turns[i].run else { return }
         turns[i].run = .running
-        var problems: [String] = []
-        var reminders: [String] = []
-        var events: [String] = []
-        var removals: [ApprovedAction] = []
-        let relay = app?.relay
-        for item in turns[i].executed {
-            switch item {
-            case .reminder(let id): reminders.append(id)
-            case .event(let id): events.append(id)
-            case .hold(let account, let calendarId, let eventId):
-                removals.append(
-                    ApprovedAction(
-                        kind: .deleteHold(account: account, calendarId: calendarId, eventId: eventId), context: .ask, approvedAt: now))
-            case .pending(let actionId, let label):
-                let status = try? await relay?.cancel(id: actionId)
-                if status?.state != .cancelled { problems.append("\(label): already went out.") }
-            case .sent(let label):
-                problems.append("\(label): already went out.")
-            }
-        }
-        do {
-            if !reminders.isEmpty { try await services.calendar.removeReminders(reminders) }
-            if !events.isEmpty { try await services.calendar.removeEvents(events) }
-            if !removals.isEmpty {
-                guard let relay else { throw RelayError.notConfigured }
-                let statuses = try await relay.submit(removals)
-                if statuses.contains(where: { $0.state == .failed || $0.state == .refused }) {
-                    problems.append("A hold couldn't be removed.")
-                }
-            }
-        } catch {
-            problems.append(Self.describe(error))
-        }
+        let receipts = turns[i].receipts
+        let problems = await runner.undo(receipts, now: now)
         let ran = turns[i].proposals.filter { turns[i].selected.contains($0.id) }
-        turns[i].executed = []
+        turns[i].receipts = []
         turns[i].notes = []
         turns[i].links = []
         turns[i].undoProblem = problems.isEmpty ? nil : problems.joined(separator: " ")
         turns[i].outcome = AskOutcome.text(ran: ran, skipped: [], failed: [], undone: true)
         turns[i].run = .waiting
-        if !removals.isEmpty || !events.isEmpty { await app?.plans.refresh() }
+        if ProposalRunner.touchesCalendars(receipts) { await app?.plans.refresh() }
+    }
+
+    var runner: ProposalRunner {
+        ProposalRunner(services: services, relay: app?.relay, household: household, context: .ask, replyDelay: Self.replyDelay)
     }
 
     // MARK: Plumbing
@@ -360,13 +239,6 @@ public final class AskModel {
     func update(_ id: Int, _ change: (inout Turn) -> Void) {
         guard let i = turns.firstIndex(where: { $0.id == id }) else { return }
         change(&turns[i])
-    }
-
-    /// "Card note drafted, Thursday reminder set."
-    static func sentence(_ parts: [String]) -> String {
-        let joined = parts.joined(separator: ", ")
-        guard let first = joined.first else { return "" }
-        return first.uppercased() + joined.dropFirst() + (joined.hasSuffix(".") ? "" : ".")
     }
 
     nonisolated static func describe(_ error: any Error) -> String {

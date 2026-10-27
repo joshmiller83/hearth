@@ -49,9 +49,14 @@ extension AppServices {
         } else {
             wait = { _ in }
         }
+        let database = try! AppDatabase.inMemory()
+        var robin = Person(card: Fixtures.people[1], isPartner: true)
+        robin.anniversary = MonthDay(month: 11, day: 14, year: 2012)
+        try? database.save([robin, Person(card: Fixtures.people[0])], key: StoreKey.people, now: now)
+        try? database.save(PartnerPlan(loves: ["Thai food", "Mystery novels"]), key: StoreKey.partnerPlan, now: now)
         return AppServices(
             secrets: MemorySecretStore([.relayURL: "https://relay.example", .relayKey: "hrk_fixture", .claudeKey: "sk-ant-fixture"]),
-            database: try! AppDatabase.inMemory(),
+            database: database,
             calendar: FixtureCalendar(),
             people: FixturePeople(),
             clock: ManualClock(now),
@@ -246,6 +251,9 @@ public struct FixtureClaude: HTTPTransport {
 
     public func send(_ request: HTTPRequest) async throws -> HTTPResponse {
         let body = request.body.flatMap { try? JSONValue.parse($0) }
+        let properties = body?["output_config"]?["format"]?["schema"]?["properties"]
+        if properties?["ideas"] != nil { return Self.reply(Self.peopleIdeas.serialized()) }
+        if properties?["plans"] != nil { return Self.reply(Self.partnerPlans.serialized()) }
         let content = body?["messages"]?[0]?["content"]?.arrayValue ?? []
         let text = content.compactMap { $0["text"]?.stringValue }.joined(separator: " ").lowercased()
         let hasImage = content.contains { $0["type"]?.stringValue == "image" }
@@ -376,6 +384,61 @@ public struct FixtureClaude: HTTPTransport {
                     "Two invites are waiting on you: the leaders huddle Thursday, which overlaps Bible study, and the alumni mixer Wednesday.\n\nEverything else this week can wait.",
             ]
         ], stopReason: "end_turn")
+
+    static let peopleIdeas: JSONValue = [
+        "ideas": [
+            [
+                "person": "Mom", "source": "Mom's birthday is Tuesday", "title": "Call Mom Tuesday evening",
+                "body": "Tuesday after 7 is open, and a call lands better than a text on a birthday.",
+                "actions": [
+                    step(
+                        "hold", "Hold Tue 7:30 PM", "Private hold · nothing sent to anyone", "Tuesday call held", title: "Call Mom",
+                        start: "2026-11-03T19:30", end: "2026-11-03T20:00")
+                ],
+            ],
+            [
+                "person": "Mom", "source": "From Mom's Oct 12 email", "title": "A new garden kneeler",
+                "body": "The old one finally gave out. One that arrives by Tuesday would make the day.",
+                "actions": [
+                    step(
+                        "link", "Find a kneeler", "Opens a store search. You check out.", "store search ready",
+                        url: "https://shop.example/search?q=garden+kneeler")
+                ],
+            ],
+            [
+                "person": "Robin", "source": "Robin's Wednesday looks full", "title": "A note for Robin's long Wednesday",
+                "body": "Three meetings back to back. A short note at lunch is enough.",
+                "actions": [
+                    step(
+                        "remind", "Nudge me Wed 11:55 AM", "Lands on your phone", "Wednesday nudge set", title: "Send Robin a note",
+                        start: "2026-10-28T11:55"),
+                    step(
+                        "note", "Draft a note", "You send it yourself", "note drafted",
+                        text: "Thinking of you on the long day. Dinner's on me tonight."),
+                ],
+            ],
+        ]
+    ]
+
+    static let partnerPlans: JSONValue = [
+        "plans": [
+            [
+                "tag": "From your list: Thai food", "title": "Thai dinner downtown",
+                "sub": "7:00 PM, a table for two. A walk after if it's mild.",
+                "short": "the Thai dinner", "start": "19:00", "minutes": 150,
+            ],
+            [
+                "tag": "Needs one detail from you", "title": "Recreate your first date",
+                "sub": "Tell Hearth where it was, and Claude handles the rest.", "short": "your first date, again", "start": "18:30",
+                "minutes": 180,
+            ],
+            [
+                "tag": "Low-key", "title": "A night in, done properly",
+                "sub": "Cook together, a mystery to read aloud, phones in a drawer.",
+                "short": "a night in", "start": "18:00", "minutes": 180,
+            ],
+        ]
+    ]
 
     static func step(
         _ kind: String, _ label: String, _ detail: String, _ done: String, title: String = "", start: String = "", end: String = "",

@@ -121,6 +121,23 @@ final class SmokeUITests: XCTestCase {
     }
 
     @MainActor
+    func testPeopleIdeasAndThePartnerPlan() {
+        let app = launch()
+        app.tabBars.buttons["People"].tap()
+        let hold = app.buttons["Hold Tue 7:30 PM"]
+        XCTAssertTrue(hold.waitForExistence(timeout: 10))
+        hold.tap()
+        XCTAssertTrue(app.staticTexts["Tuesday call held."].waitForExistence(timeout: 5))
+        app.buttons.matching(NSPredicate(format: "label CONTAINS 'Anniversary with Robin'")).firstMatch.tap()
+        let plan = app.buttons["Plan the Thai dinner"]
+        XCTAssertTrue(plan.waitForExistence(timeout: 10))
+        plan.tap()
+        XCTAssertTrue(app.buttons["Undo the hold"].waitForExistence(timeout: 5))
+        app.buttons["Undo the hold"].tap()
+        XCTAssertTrue(app.buttons["Plan the Thai dinner"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testSourcesShowsTheRelayAndRules() {
         let app = launch()
         app.buttons["Sources and rules"].tap()
