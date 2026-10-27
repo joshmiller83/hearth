@@ -74,10 +74,12 @@ public struct JobContext: Sendable {
     public var logger: Logger
     /// The relay's own Claude client, when it has a key.
     public var claude: ClaudeClient?
+    /// Plain HTTPS, for public sources like the weather service.
+    public var http: (any HTTPTransport)?
 
     public init(
         db: any Database, google: any GoogleReader, household: Household, now: @escaping @Sendable () -> Date,
-        logger: Logger, claude: ClaudeClient? = nil
+        logger: Logger, claude: ClaudeClient? = nil, http: (any HTTPTransport)? = nil
     ) {
         self.db = db
         self.google = google
@@ -85,6 +87,7 @@ public struct JobContext: Sendable {
         self.now = now
         self.logger = logger
         self.claude = claude
+        self.http = http
     }
 
     public var cache: Cache { Cache(db: db) }

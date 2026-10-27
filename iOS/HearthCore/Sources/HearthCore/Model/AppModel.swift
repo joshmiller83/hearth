@@ -68,6 +68,7 @@ public final class AppModel {
     public let capture: CaptureModel
     public let inbox: InboxModel
     public let ask: AskModel
+    public let signals: SignalsModel
 
     public init(services: AppServices) {
         self.services = services
@@ -80,11 +81,13 @@ public final class AppModel {
         capture = CaptureModel(services: services, inbox: services.inbox)
         inbox = InboxModel(services: services)
         ask = AskModel(services: services)
+        signals = SignalsModel(services: services)
         plans.app = self
         sources.app = self
         capture.app = self
         inbox.app = self
         ask.app = self
+        signals.app = self
     }
 
     public var now: Date { services.clock.now }
@@ -163,6 +166,7 @@ public final class AppModel {
         await refreshHealth()
         await plans.refresh(force: force)
         await inbox.refresh(force: force)
+        await signals.refresh()
         await refreshBrief()
         plans.publishWidgets()
     }

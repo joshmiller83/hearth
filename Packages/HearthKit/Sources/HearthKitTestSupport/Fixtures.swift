@@ -108,7 +108,7 @@ public enum Fixtures {
 // MARK: - Mail
 
 extension Fixtures {
-    static func mail(
+    public static func mail(
         _ id: String, _ account: String, _ from: String, _ subject: String, _ snippet: String, _ local: String,
         labels: [String] = ["INBOX", "UNREAD"], github: String? = nil, listId: String? = nil
     ) -> MailItem {

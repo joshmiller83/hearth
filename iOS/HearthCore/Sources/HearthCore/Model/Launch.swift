@@ -133,6 +133,15 @@ public actor FixtureRelay: RelayAPI {
 
     public func registerDevice(_ registration: DeviceRegistration) async throws {}
 
+    public func signals() async throws -> RelaySignals {
+        let frost = Signal(
+            id: "wx:frost:2026-10-26", category: .family, monogram: "WX", source: "National Weather Service",
+            date: Fixtures.now.addingTimeInterval(-2 * 3600), title: "Frost tonight, low of 29°F",
+            detail: "Maple Grove. Cover anything tender before sundown.",
+            actions: [.remind(label: "Remind me at 5", title: "Cover the tender plants", at: Fixtures.at("2026-10-26T17:00"))])
+        return RelaySignals(signals: [frost], fetchedAt: Fixtures.now.addingTimeInterval(-10 * 60))
+    }
+
     public func searchMail(_ search: GmailSearchRequest) async throws -> GmailSearchResponse {
         let words = search.query.lowercased().split(separator: " ").compactMap { $0.split(separator: ":").last.map(String.init) }
             .filter { !$0.hasSuffix("d") || Int($0.dropLast()) == nil }

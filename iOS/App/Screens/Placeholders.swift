@@ -39,16 +39,6 @@ struct PeoplePlaceholder: View {
     }
 }
 
-struct SignalsPlaceholder: View {
-    var body: some View {
-        ComingSoon(
-            title: "Signals", milestone: "M6", symbol: "bell",
-            lines: [
-                "GitHub reviews, weather alerts, serving schedules and shipping, with the noise quieted into bundles."
-            ])
-    }
-}
-
 struct AroundTownPlaceholder: View {
     var body: some View {
         Card(padding: EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)) {

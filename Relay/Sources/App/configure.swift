@@ -15,7 +15,9 @@ public enum RelayInfo {
 ///
 /// Like the tree farm server, the relay runs one event loop and so one SQLite
 /// connection: every write happens alone.
-public func configure(_ app: Application, config: RelayConfig, google: GoogleAccess? = nil, claude: ClaudeClient? = nil) async throws {
+public func configure(
+    _ app: Application, config: RelayConfig, google: GoogleAccess? = nil, claude: ClaudeClient? = nil, http: (any HTTPTransport)? = nil
+) async throws {
     app.http.server.configuration.hostname = config.host
     app.http.server.configuration.port = config.port
     app.routes.defaultMaxBodySize = "4mb"
@@ -55,10 +57,11 @@ public func configure(_ app: Application, config: RelayConfig, google: GoogleAcc
         household: household,
         google: access,
         executor: executor,
-        jobs: JobRunner(jobs: [CalendarCacheJob(), MailSweepJob(), BriefJob()]),
+        jobs: JobRunner(jobs: [CalendarCacheJob(), MailSweepJob(), BriefJob(), WeatherJob()]),
         refresher: CalendarRefresher(),
         claude: claude,
-        apns: config.loadAPNs().flatMap { try? APNsClient(config: $0, client: app.client) }
+        apns: config.loadAPNs().flatMap { try? APNsClient(config: $0, client: app.client) },
+        http: http ?? VaporHTTPTransport(client: app.client)
     )
 
     app.failedAuth = FailedAuthLimiter()
@@ -109,4 +112,5 @@ func routes(_ app: Application) throws {
     try keyed.register(collection: MailController())
     try keyed.register(collection: BriefController())
     try keyed.register(collection: ToolsController())
+    try keyed.register(collection: SignalsController())
 }

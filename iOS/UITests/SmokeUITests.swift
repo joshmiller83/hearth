@@ -107,6 +107,20 @@ final class SmokeUITests: XCTestCase {
     }
 
     @MainActor
+    func testSignalsQuietTheChatter() {
+        let app = launch()
+        let bell = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Signals'")).firstMatch
+        XCTAssertTrue(bell.waitForExistence(timeout: 10))
+        bell.tap()
+        XCTAssertTrue(app.staticTexts["Review requested on #218"].waitForExistence(timeout: 5))
+        app.buttons["Remind me at 5"].tap()
+        XCTAssertTrue(app.staticTexts["Reminder set for 5:00 PM"].waitForExistence(timeout: 5))
+        app.buttons["Mark read: GitHub, subscribed threads"].tap()
+        let cleared = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'GitHub, subscribed threads: marked'")).firstMatch
+        XCTAssertTrue(cleared.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testSourcesShowsTheRelayAndRules() {
         let app = launch()
         app.buttons["Sources and rules"].tap()

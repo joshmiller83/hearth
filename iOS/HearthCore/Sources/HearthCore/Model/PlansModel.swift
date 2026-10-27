@@ -133,6 +133,7 @@ public final class PlansModel {
             WidgetSnapshot.make(
                 agenda: agenda, now: now, fetchedAt: fetchedAt,
                 repliesReady: app?.inbox.snapshot?.items(in: .reply).count ?? 0,
+                signals: app?.signals.pressing.count ?? 0,
                 brief: app?.todaysBrief,
                 topReply: app?.inbox.snapshot?.items(in: .reply).first.map { "Reply: \($0.item.senderName)" }))
     }

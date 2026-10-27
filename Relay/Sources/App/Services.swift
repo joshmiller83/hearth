@@ -37,6 +37,8 @@ public struct RelayServices: Sendable {
     public var claude: ClaudeClient?
     /// Push, when an APNs key is installed.
     public var apns: APNsClient?
+    /// Plain HTTPS for public sources.
+    public var http: any HTTPTransport
 }
 
 extension Application {
@@ -66,7 +68,7 @@ extension Application {
     public func jobContext() -> JobContext {
         JobContext(
             db: db, google: relay.google.reader, household: relay.household, now: relay.config.now,
-            logger: logger, claude: relay.claude)
+            logger: logger, claude: relay.claude, http: relay.http)
     }
 }
 

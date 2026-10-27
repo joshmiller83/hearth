@@ -13,6 +13,10 @@ public struct Cache: Sendable {
     public static let brief = "brief"
     public static let context = "phone.context"
     public static let signals = "signals"
+    /// The weather service's forecast address for home (it rarely changes).
+    public static let forecastURL = "weather.forecastURL"
+    /// Signals already pushed, so each goes out once.
+    public static let signalsPushed = "signals.pushed"
     public static let feeds = "feeds"
 
     public let db: any Database

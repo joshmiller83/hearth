@@ -2,6 +2,23 @@
 
 What each milestone left for later. Newest first.
 
+## M6 Signals
+
+- Signals come from the mail sweep: GitHub notification emails (so "via home"),
+  Planning Center's scheduling emails, Facebook, carriers and family. There are
+  no GitHub or Planning Center API tokens yet, so Planning Center's Accept and
+  Decline happen in its email or app, and Mark read archives GitHub's emails
+  rather than touching GitHub itself.
+- Family means mail Claude tagged Family, or from Mom, Dad and the like, or
+  from your partner by name. Church means a sender with "church" in the address,
+  or Planning Center.
+- The relay checks the National Weather Service every 30 minutes, for alerts
+  and the coming night's low. Severe and extreme alerts push once, even in
+  quiet hours. Home's point is rounded to about a kilometer.
+- Facebook events get Read, not the design's Add to Family; reading events
+  comes with M8.
+- "Nothing late" for shipping means no delay words in the subject.
+
 ## M5 Ask Hearth
 
 - Ask needs the phone's Claude key (Sources). A question costs a few cents at

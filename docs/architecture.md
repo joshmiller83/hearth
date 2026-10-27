@@ -44,8 +44,9 @@ except `GET /v1/health`, which without the key answers only `{"status":"ok"}`.
 | `POST /v1/context` | M1 | The phone's switches and Apple calendars, for the jobs |
 | `GET /v1/mail/snapshot`, `GET /v1/mail/threads/:account/:id` | M3 | Triage queues, a thread |
 | `GET /v1/brief`, `POST /v1/devices` | M4 | The morning brief; the APNs token |
-| `POST /v1/tools/:name` | M5 | Read-only gmailkit tools for Ask's tool loop |
-| `GET /v1/signals`, `GET|POST /v1/feeds` | M6, M8 | Signals; event feeds |
+| `POST /v1/tools/gmail_search` | M5 | Ask's mail search, read-only (any other tool name is a 404) |
+| `GET /v1/signals[?refresh=1]` | M6 | The weather the relay watches (NWS alerts, the night's low); the phone adds mail-derived signals |
+| `GET|POST /v1/feeds` | M8 | Event feeds |
 
 ## Claude
 

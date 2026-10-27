@@ -53,7 +53,7 @@ struct TodayView: View {
             Spacer()
             HStack(spacing: 2) {
                 RoundIconButton(symbol: "plus", label: "Add to Hearth: a photo or a note") { showCapture = true }
-                RoundIconButton(symbol: "bell", label: "Signals") { path.append(.signals) }
+                RoundIconButton(symbol: "bell", label: "Signals", badge: app.signals.badge) { path.append(.signals) }
                 Button {
                     path.append(.sources)
                 } label: {

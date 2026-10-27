@@ -15,6 +15,8 @@ public protocol RelayAPI: Sendable {
     func registerDevice(_ registration: DeviceRegistration) async throws
     /// Ask's mail search (read-only).
     func searchMail(_ search: GmailSearchRequest) async throws -> GmailSearchResponse
+    /// What the relay watches for the phone (the weather).
+    func signals() async throws -> RelaySignals
 }
 
 public enum RelayError: Error, Equatable, Sendable, CustomStringConvertible {
@@ -128,6 +130,10 @@ public struct RelayClient: RelayAPI {
 
     public func thread(account: String, threadId: String) async throws -> ThreadResponse {
         try await call("GET", url(RelayPath.mailThreads + "/" + account + "/" + threadId), timeout: 60, as: ThreadResponse.self)
+    }
+
+    public func signals() async throws -> RelaySignals {
+        try await call("GET", url(RelayPath.signals), as: RelaySignals.self)
     }
 
     public func searchMail(_ search: GmailSearchRequest) async throws -> GmailSearchResponse {

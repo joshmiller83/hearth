@@ -148,6 +148,8 @@ func withTestApp<T>(
     clock: ManualClock = ManualClock(Fixtures.now),
     google: FakeGoogle = FakeGoogle(),
     claude: ClaudeClient? = nil,
+    // Never the real network: an empty script fails each call, which jobs report as a problem.
+    http: any HTTPTransport = ScriptedTransport([]),
     adjust: (inout RelayConfig) -> Void = { _ in },
     _ body: (TestContext) async throws -> T
 ) async throws -> T {
@@ -162,7 +164,7 @@ func withTestApp<T>(
     adjust(&config)
     let result: T
     do {
-        try await configure(app, config: config, google: GoogleAccess(reader: google, writer: google), claude: claude)
+        try await configure(app, config: config, google: GoogleAccess(reader: google, writer: google), claude: claude, http: http)
         result = try await body(TestContext(app: app, clock: clock, google: google))
     } catch {
         try? await app.asyncShutdown()

@@ -62,6 +62,11 @@ public struct TodaySummary: Sendable, Equatable {
                     detail: "\(reply.tag) · \(item.account) · \(app.inbox.time(item.date))"))
         }
 
+        // Weather bad enough to push comes first.
+        for signal in app.signals.pressing {
+            needs.insert(NeedsYou(id: signal.id, kind: .signal, title: signal.title, detail: signal.detail), at: 0)
+        }
+
         // The brief decides the order; anything it didn't rank keeps its place after.
         if let order = app.todaysBrief?.order, !order.isEmpty {
             let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })

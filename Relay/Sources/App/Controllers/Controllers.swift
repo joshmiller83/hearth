@@ -204,3 +204,16 @@ struct ToolsController: RouteCollection {
         }
     }
 }
+
+struct SignalsController: RouteCollection {
+    func boot(routes: any RoutesBuilder) throws {
+        // What the relay watches for the phone (the weather); `refresh=1` checks now.
+        routes.get("v1", "signals") { req async throws -> Response in
+            if ["1", "true", "yes"].contains(req.query[String.self, at: "refresh"] ?? "") {
+                return try .json(try await WeatherJob.check(req.application.jobContext()))
+            }
+            let cached = try await Cache(db: req.db).get(RelaySignals.self, Cache.signals)
+            return try .json(cached ?? RelaySignals(signals: [], fetchedAt: nil))
+        }
+    }
+}

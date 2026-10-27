@@ -31,7 +31,7 @@ struct RootView: View {
                     TodayView(tab: $tab, showCapture: $showCapture, path: $todayPath)
                         .navigationDestination(for: Destination.self) { destination in
                             switch destination {
-                            case .signals: SignalsPlaceholder()
+                            case .signals: SignalsView(tab: $tab, path: $todayPath)
                             case .sources: SourcesView()
                             }
                         }

@@ -41,6 +41,11 @@ final class ScreenSnapshotTests: XCTestCase {
         assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
     }
 
+    func testSignals() async {
+        let host = await screen(SignalsView(tab: .constant(.today), path: .constant([])))
+        assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))
+    }
+
     func testSources() async {
         let host = await screen(SourcesView())
         assertSnapshot(of: host, as: .image(on: .iPhone13ProMax, precision: 0.99, perceptualPrecision: 0.98))

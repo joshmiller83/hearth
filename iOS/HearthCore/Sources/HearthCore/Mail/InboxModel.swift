@@ -241,7 +241,12 @@ public final class InboxModel {
 
     /// Takes one message out of the snapshot (after it's been archived or answered from its thread).
     func drop(_ mail: TriagedMail) {
-        snapshot = snapshot?.removing(account: mail.item.account, ids: [mail.item.id])
+        forget(account: mail.item.account, ids: [mail.item.id])
+    }
+
+    /// Takes messages filed from elsewhere (Signals' Mark read) out of the snapshot.
+    func forget(account: String, ids: Set<String>) {
+        snapshot = snapshot?.removing(account: account, ids: ids)
         if let snapshot { try? services.database.save(snapshot, key: StoreKey.mail, now: now) }
     }
 
