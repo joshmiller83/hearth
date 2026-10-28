@@ -53,7 +53,14 @@ public final class ChatsModel {
     public var available: Bool { status?.state == .ok }
 
     /// Questions waiting on the owner, minus the ones they left out.
-    public var waiting: [ChatSummary] { threads.filter { $0.waiting && !leftOut.contains($0.waitingId) } }
+    public var waiting: [ChatSummary] { threads.filter { isWaiting($0) } }
+
+    /// Someone the owner knows asked and they haven't answered. The relay knows who they've
+    /// texted; this phone knows their contacts. A stranger's question waits on no one.
+    public func isWaiting(_ summary: ChatSummary) -> Bool {
+        guard !leftOut.contains(summary.waitingId) else { return false }
+        return summary.waiting || (summary.asked && summary.thread.handles.contains { names[ChatHandle.normalize($0)] != nil })
+    }
 
     public func leaveOut(_ summary: ChatSummary) {
         leftOut.insert(summary.waitingId)

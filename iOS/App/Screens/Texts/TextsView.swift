@@ -56,7 +56,7 @@ private struct TextRow: View {
                         .foregroundStyle(Theme.muted)
                 }
                 Text(chats.preview(summary)).font(.hMeta).foregroundStyle(Theme.muted).lineLimit(2)
-                if summary.waiting && !chats.leftOut.contains(summary.waitingId) {
+                if chats.isWaiting(summary) {
                     TagChip(text: "Waiting on you", style: .ember).padding(.top, 4)
                 }
             }
@@ -130,7 +130,7 @@ struct TextThreadView: View {
     @ViewBuilder func actions(_ summary: ChatSummary?) -> some View {
         let chats = app.chats
         let thread = loaded?.thread ?? summary?.thread
-        let waiting = summary.map { $0.waiting && !chats.leftOut.contains($0.waitingId) } ?? false
+        let waiting = summary.map { chats.isWaiting($0) } ?? false
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 Button("Add to \(app.household.familyCalendar)") {

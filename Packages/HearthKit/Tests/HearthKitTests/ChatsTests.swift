@@ -52,18 +52,32 @@ struct ChatsTests {
 
     @Test func onlyMomIsWaiting() throws {
         let summaries = Chats.summaries(Fixtures.chats, ownerName: "Sam", now: Fixtures.now)
-        #expect(summaries.map(\.thread.id) == ["mom", "bank", "cousins", "robin", "coach"])
+        #expect(summaries.map(\.thread.id) == ["mom", "bank", "cousins", "store", "robin", "coach"])
         #expect(summaries.filter(\.waiting).map(\.thread.id) == ["mom"])
+        // The store asked too, but Sam has never texted it.
+        #expect(summaries.filter(\.asked).map(\.thread.id) == ["mom", "store"])
         let mom = try #require(summaries.first)
         #expect(mom.unanswered.map(\.id) == ["m2", "m3"])
         #expect(mom.waitingId == "mom#m3")
+    }
+
+    @Test func textingSomeoneInAnyConversationMakesThemKnown() {
+        // Messages keeps one number's iMessage and SMS conversations apart.
+        var export = Fixtures.chats
+        export.threads.append(ChatThread(id: "store-imessage", handles: ["+15550100009"]))
+        export.messages.append(
+            ChatMessage(
+                id: "s0", threadId: "store-imessage", fromMe: true, date: Fixtures.at("2026-10-24T12:00"),
+                text: "Do you have the grill in stock?"))
+        let summaries = Chats.summaries(export, ownerName: "Sam", now: Fixtures.now)
+        #expect(summaries.filter(\.waiting).map(\.thread.id) == ["mom", "store"])
     }
 
     @Test func aGroupWaitsOnlyWhenItNamesTheOwner() {
         let group = ChatThread(id: "g", handles: ["+15550100003", "+15550100004"])
         func asked(_ text: String) -> Bool {
             let message = ChatMessage(id: "x", threadId: "g", fromMe: false, sender: "+15550100003", date: Fixtures.now, text: text)
-            return Chats.isWaiting(thread: group, unanswered: [message], ownerName: "Sam", now: Fixtures.now)
+            return Chats.asks(thread: group, unanswered: [message], ownerName: "Sam", now: Fixtures.now)
         }
         #expect(!asked("Who's bringing chairs?"))
         #expect(asked("Sam, can you bring the table?"))

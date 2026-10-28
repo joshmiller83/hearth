@@ -3,7 +3,8 @@ import HearthKit
 
 extension Fixtures {
     /// The household's texts, as `hearth-messages` exports them. Mom is waiting on an answer;
-    /// the rest aren't (no question, a short code, a group that doesn't name Sam, too old).
+    /// the rest aren't (no question, a short code, a group that doesn't name Sam, too old, a
+    /// store Sam has never texted and Contacts doesn't know).
     public static var chats: ChatExport {
         func text(_ id: String, _ thread: String, _ sender: String?, _ local: String, _ text: String, attachment: Bool = false)
             -> ChatMessage
@@ -19,6 +20,7 @@ extension Fixtures {
                 ChatThread(id: "cousins", name: "Rivera cousins", handles: ["+15550100003", "lou.rivera@example.com"]),
                 ChatThread(id: "bank", handles: ["72975"], service: "SMS"),
                 ChatThread(id: "coach", handles: ["+15550100005"]),
+                ChatThread(id: "store", handles: ["+15550100009"], service: "SMS"),
             ],
             messages: [
                 text("c1", "coach", "+15550100005", "2026-10-20T17:02", "Can the kids do 5:30 Thursday instead?"),
@@ -26,6 +28,7 @@ extension Fixtures {
                 text("r2", "robin", "+15550100002", "2026-10-25T18:41", "Grab milk please", attachment: false),
                 text("g1", "cousins", "lou.rivera@example.com", "2026-10-25T20:15", "Who's bringing chairs to the potluck?"),
                 text("g2", "cousins", "+15550100003", "2026-10-25T20:20", "We have six folding ones"),
+                text("s1", "store", "+15550100009", "2026-10-25T19:05", "Still deciding on the grill? Reply YES to hold it."),
                 text("b1", "bank", "72975", "2026-10-26T07:55", "Your code is 418230. Didn't ask for it? Call us."),
                 text("m1", "mom", nil, "2026-10-25T09:00", "We made it home!"),
                 text("m2", "mom", "+15550100001", "2026-10-26T08:12", "Are you all coming Sunday? I'm making the roast."),
